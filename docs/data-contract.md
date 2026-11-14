@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.6)
+# Escentron core: data contract (draft v0.7)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -134,6 +134,33 @@ energy, the associated inverse conversion, energy conservation during a step,
 or the limit on attainable velocity. The complete gravitational and levitational response laws remain to be specified. The generic
 `ResponseLaw` trait remains separate; the new partial coefficient is not
 automatically incorporated into every custom implementation.
+
+## Kinetic-energy budget diagnostics (read-only)
+
+The following results are algebraic consequences of the model's energy
+decomposition, *not* a new law of motion:
+
+- `E_available_k = E_c - E_g - E_l`
+- `E_remaining_k = E_available_k - E_k`
+- `v_max_fixed_reservoirs = sqrt(E_available_k / k_k)` if `k_k > 0`
+- `v_energy_upper_bound = sqrt(E_c / k_k)` if `k_k > 0`
+
+The first speed limit **assumes both non-kinetic reservoirs remain fixed**.
+It does not determine how energy would be transferred during acceleration;
+an initial state with spare budget is not necessarily a valid conserved
+Escentron state. The second bound is an algebraic ceiling if all cosmic
+energy could hypothetically be assigned to kinetic energy. It is not a
+claim that any trajectory can attain that speed.
+
+`kinetic_budget(target, constants)` only reports these quantities, and
+rejects negative budgets, energy overspending and zero `k_k`.
+It does not update velocity, enforce a speed cap, choose a timestep,
+resolve acceleration direction, or transfer energy between reservoirs.
+
+**Unresolved physics:** when the proposed acceleration speeds a particle
+up versus slows it down, which reservoir is changed, and by how much.
+The historical math spec's complete step-update rules must be checked
+before implementing that dynamics.
 
 ## Explicitly outside this version
 
