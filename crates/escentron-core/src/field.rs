@@ -12,6 +12,7 @@ pub const INNER_RADIUS_RATIO: f64 = 0.001;
 pub enum FieldError {
     InvalidInput(ValidationError),
     UndefinedCoreRadius,
+    InvalidTargetIndex,
     NonFiniteResult,
 }
 
@@ -24,6 +25,7 @@ impl std::fmt::Display for FieldError {
         match self {
             Self::InvalidInput(err) => err.fmt(f),
             Self::UndefinedCoreRadius => write!(f, "finite inner radius cannot be defined from X=p/m"),
+            Self::InvalidTargetIndex => write!(f, "target particle index is out of range"),
             Self::NonFiniteResult => write!(f, "field calculation exceeded finite numerical range"),
         }
     }
@@ -169,6 +171,31 @@ pub fn field_at(
         gravitational: GravitationalField(gravitational),
         levitational: LevitationalField(levitational),
     })
+}
+
+/// Sum source fields at the position of one particle, skipping its own
+/// source contribution by index. Coincident *other* particles still exert
+/// their regularized zero-at-center fields; collision rules remain separate.
+pub fn fields_for_particle(
+    sources: &[ParticleState],
+    target_index: usize,
+    constants: &ModelConstants,
+) -> Result<FieldTotals, FieldError> {
+    let target = sources.get(target_index).ok_or(FieldError::InvalidTargetIndex)?;
+    target.validate()?;
+    constants.validate()?;
+    let mut result = FieldTotals::ZERO;
+    for (index, source) in sources.iter().enumerate() {
+        if index == target_index { continue; }
+        let contribution = field_at(source, target.position, constants)?;
+        result.gravitational = GravitationalField(sum_vectors(
+            result.gravitational.0, contribution.gravitational.0,
+        )?);
+        result.levitational = LevitationalField(sum_vectors(
+            result.levitational.0, contribution.levitational.0,
+        )?);
+    }
+    Ok(result)
 }
 
 fn sum_vectors(a: Vector3, b: Vector3) -> Result<Vector3, FieldError> {
@@ -339,5 +366,22 @@ mod tests {
         assert_eq!(fields.levitational.0, Vector3::ZERO);
     }
 
+
+    #[test]
+    fn particle_does_not_include_its_own_fields() {
+        let sources = [source_at(0.0), source_at(1.0)];
+        let totals = fields_for_particle(&sources, 0, &constants()).unwrap();
+        let expected = field_at(&sources[1], sources[0].position, &constants()).unwrap();
+        assert_eq!(totals.gravitational, expected.gravitational);
+        assert_eq!(totals.levitational, expected.levitational);
+    }
+
+    #[test]
+    fn invalid_particle_index_is_rejected() {
+        assert_eq!(
+            fields_for_particle(&[source_at(0.0)], 1, &constants()),
+            Err(FieldError::InvalidTargetIndex)
+        );
+    }
 
 }
