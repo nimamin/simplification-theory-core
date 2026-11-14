@@ -3,6 +3,7 @@
 //! This crate currently defines the Escentron data model and energy bookkeeping.
 //! It does not yet integrate equations of motion or claim physical validation.
 
+mod allocation;
 mod budget;
 mod constants;
 mod energy;
@@ -12,6 +13,7 @@ mod response;
 mod validation;
 mod vector;
 
+pub use allocation::{acceleration_shares, allocate_kinetic_change, AccelerationShares, AllocationError};
 pub use budget::{transfer_energy, EnergyReservoir, TransferError};
 pub use constants::ModelConstants;
 pub use energy::{energy_of, EnergyBreakdown};
