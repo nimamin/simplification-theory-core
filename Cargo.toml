@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/escentron-core"]
+resolver = "2"
