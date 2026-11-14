@@ -3,7 +3,7 @@
 //! The physical induction laws are not specified in this module. A caller must
 //! provide an explicit implementation of each response law. The resulting
 //! accelerations, unlike the heterogeneous fields, may be vector-summed.
-use crate::{FieldTotals, ParticleState, ValidationError, Vector3};
+use crate::{energy_of, FieldTotals, ModelConstants, ParticleState, ValidationError, Vector3};
 
 /// Errors in acceleration contributions or the response calculation.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -12,6 +12,7 @@ pub enum ResponseError {
     InvalidField(&'static str),
     InvalidAcceleration(&'static str),
     NonFiniteTotal,
+    EnergyExceedsCosmic,
 }
 
 impl std::fmt::Display for ResponseError {
@@ -21,10 +22,60 @@ impl std::fmt::Display for ResponseError {
             Self::InvalidField(name) => write!(f, "non-finite {name} field"),
             Self::InvalidAcceleration(name) => write!(f, "non-finite {name} acceleration"),
             Self::NonFiniteTotal => write!(f, "non-finite total acceleration"),
+            Self::EnergyExceedsCosmic => write!(f, "gravitational energy exceeds cosmic energy"),
         }
     }
 }
 impl std::error::Error for ResponseError {}
+
+
+/// Fraction of a target Escentron's cosmic energy stored as gravitational energy.
+///
+/// alpha_g = E_g / E_c = (k_g * m) / E_c.
+///
+/// This is one *partial* response coefficient, not a complete acceleration
+/// law. The input state must respect the energy budget: E_g <= E_c.
+/// No clamping or normalization is performed.
+pub fn gravitational_response_coefficient(
+    target: &ParticleState,
+    constants: &ModelConstants,
+) -> Result<f64, ResponseError> {
+    let energy = energy_of(target, constants).map_err(ResponseError::InvalidTarget)?;
+    if energy.gravitational > constants.cosmic_energy {
+        return Err(ResponseError::EnergyExceedsCosmic);
+    }
+    let coefficient = energy.gravitational / constants.cosmic_energy;
+    if !coefficient.is_finite() {
+        return Err(ResponseError::InvalidAcceleration("gravitational coefficient"));
+    }
+    Ok(coefficient)
+}
+
+/// Scale a separately determined *proposed* gravitational acceleration
+/// by the target's gravitational energy fraction.
+///
+/// This is NOT a conversion from gravitational field to acceleration.
+/// It does not implement the direction-dependent energy transfer, velocity
+/// constraint, timestep, or remaining response rules.
+pub fn scale_gravitational_acceleration(
+    target: &ParticleState,
+    constants: &ModelConstants,
+    proposed: Vector3,
+) -> Result<Vector3, ResponseError> {
+    if !proposed.is_finite() {
+        return Err(ResponseError::InvalidAcceleration("proposed gravitational"));
+    }
+    let alpha = gravitational_response_coefficient(target, constants)?;
+    let scaled = Vector3::new(
+        proposed.x * alpha,
+        proposed.y * alpha,
+        proposed.z * alpha,
+    );
+    if !scaled.is_finite() {
+        return Err(ResponseError::InvalidAcceleration("scaled gravitational"));
+    }
+    Ok(scaled)
+}
 
 /// Placeholder contract for target-specific physical induction rules.
 /// Implementations will be supplied only after their equations are agreed.
@@ -129,4 +180,62 @@ mod tests {
             Err(ResponseError::InvalidField("gravitational"))
         );
     }
+
+    #[test]
+    fn gravitational_fraction_is_gravitational_energy_over_cosmic_energy() {
+        let mut state = target();
+        state.mass = 2.0;
+        let constants = crate::ModelConstants {
+            g: 1.0, k_g: 10.0, k_l: 0.0, k_k: 0.0, cosmic_energy: 100.0,
+        };
+        assert_eq!(gravitational_response_coefficient(&state, &constants).unwrap(), 0.2);
+        let proposed = Vector3::new(5.0, -10.0, 0.0);
+        assert_eq!(
+            scale_gravitational_acceleration(&state, &constants, proposed).unwrap(),
+            Vector3::new(1.0, -2.0, 0.0)
+        );
+    }
+
+    #[test]
+    fn zero_mass_has_zero_gravitational_response() {
+        let mut state = target();
+        state.mass = 0.0;
+        let constants = crate::ModelConstants {
+            g: 1.0, k_g: 10.0, k_l: 0.0, k_k: 0.0, cosmic_energy: 100.0,
+        };
+        assert_eq!(gravitational_response_coefficient(&state, &constants).unwrap(), 0.0);
+        assert_eq!(
+            scale_gravitational_acceleration(
+                &state, &constants, Vector3::new(100.0, 0.0, 0.0),
+            ).unwrap(),
+            Vector3::ZERO
+        );
+    }
+
+    #[test]
+    fn response_rejects_gravitational_energy_over_budget() {
+        let mut state = target();
+        state.mass = 11.0;
+        let constants = crate::ModelConstants {
+            g: 1.0, k_g: 10.0, k_l: 0.0, k_k: 0.0, cosmic_energy: 100.0,
+        };
+        assert_eq!(
+            gravitational_response_coefficient(&state, &constants),
+            Err(ResponseError::EnergyExceedsCosmic)
+        );
+    }
+
+    #[test]
+    fn proposed_acceleration_must_be_finite() {
+        let constants = crate::ModelConstants {
+            g: 1.0, k_g: 10.0, k_l: 0.0, k_k: 0.0, cosmic_energy: 100.0,
+        };
+        assert_eq!(
+            scale_gravitational_acceleration(
+                &target(), &constants, Vector3::new(f64::INFINITY, 0.0, 0.0),
+            ),
+            Err(ResponseError::InvalidAcceleration("proposed gravitational"))
+        );
+    }
+
 }
