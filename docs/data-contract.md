@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.8)
+# Escentron core: data contract (draft v0.9)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -174,6 +174,51 @@ and its `max_speed_with_current_reservoirs` field were removed because they
 misrepresented the dynamic energy conversion model. A physically reachable
 speed must be derived from the complete transfer and update rules rather
 than calculated using frozen reservoirs.
+
+## Allocation of kinetic energy change between the two acceleration channels
+
+This step begins **after** independent gravitational and levitational fields
+have generated their respective acceleration vectors. Heterogeneous fields
+remain separate throughout the calculation.
+
+Let `a_g` and `a_l` denote the two acceleration vectors, and define
+`A = a_g + a_l`. To allocate the effects along the **resultant acceleration
+direction**, use dot products rather than computing full projections:
+
+- `d_g = a_g · A`
+- `d_l = a_l · A`
+- `d_g + d_l = A · A = |A|²`
+
+This identity makes explicit normalization by `|A|`, square roots, angle
+calculations and trigonometry unnecessary.
+
+- If `A = 0`: both shares are zero; no kinetic-energy change may be
+  attributed to these acceleration contributions.
+- If `d_g <= 0`: the gravitational contribution is cancelled along the
+  resultant, and levitation receives 100% of the *net* effect.
+- If `d_l <= 0`: levitation is cancelled along the resultant, and gravity
+  receives 100% of the *net* effect.
+- Otherwise both project positively: `w_g = d_g / |A|²` and
+  `w_l = 1 - w_g`. The shares add to one.
+
+Given a **separately computed** signed kinetic energy change `delta_E_k`,
+assign `delta_E_k_g = w_g * delta_E_k` and
+`delta_E_k_l = delta_E_k - delta_E_k_g`.
+
+This means cancelled contributions perform no energy exchange and cannot
+directly transfer energy from gravity to levitation or vice versa. The
+bookkeeping module `transfer_energy` should be applied independently to
+each reservoir with its allocated delta, subject to available energy.
+
+In Rust, `acceleration_shares(a_g, a_l)` and
+`allocate_kinetic_change(shares, delta_E_k)` implement these steps.
+
+**Scope:** This allocation is based on projections along the resultant
+acceleration. It does not yet model motion-dependent kinetic work, choose
+`delta_E_k`, integrate velocity or position, or enforce kinetic-energy
+and speed limits. For example, a net acceleration perpendicular to the
+current velocity need not have the same kinetic-energy change as a parallel
+acceleration. That distinction must be resolved in the dynamics step.
 
 ## Explicitly outside this version
 
