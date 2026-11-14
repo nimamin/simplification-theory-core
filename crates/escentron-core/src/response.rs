@@ -241,18 +241,15 @@ mod tests {
     }
 
     #[test]
-    fn zero_mass_has_zero_gravitational_response() {
+    fn zero_mass_is_rejected_as_invalid_particle() {
         let mut state = target();
         state.mass = 0.0;
         let constants = crate::ModelConstants {
             g: 1.0, k_g: 10.0, k_l: 0.0, k_k: 0.0, cosmic_energy: 100.0,
         };
-        assert_eq!(gravitational_response_coefficient(&state, &constants).unwrap(), 0.0);
         assert_eq!(
-            scale_gravitational_acceleration(
-                &state, &constants, Vector3::new(100.0, 0.0, 0.0),
-            ).unwrap(),
-            Vector3::ZERO
+            gravitational_response_coefficient(&state, &constants),
+            Err(ResponseError::InvalidTarget(ValidationError::NonPositive("mass")))
         );
     }
 
@@ -300,18 +297,15 @@ mod tests {
     }
 
     #[test]
-    fn zero_pulse_has_zero_levitational_response() {
+    fn zero_pulse_is_rejected_as_invalid_particle() {
         let mut state = target();
         state.pulse = 0.0;
         let constants = crate::ModelConstants {
             g: 1.0, k_g: 0.0, k_l: 10.0, k_k: 0.0, cosmic_energy: 100.0,
         };
-        assert_eq!(levitational_response_coefficient(&state, &constants).unwrap(), 0.0);
         assert_eq!(
-            scale_levitational_acceleration(
-                &state, &constants, Vector3::new(50.0, 0.0, 0.0),
-            ).unwrap(),
-            Vector3::ZERO
+            levitational_response_coefficient(&state, &constants),
+            Err(ResponseError::InvalidTarget(ValidationError::NonPositive("pulse")))
         );
     }
 
