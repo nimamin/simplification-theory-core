@@ -15,6 +15,7 @@ pub enum EnergyReservoir {
 pub enum TransferError {
     NonFinite,
     NegativeEnergy,
+    NonPositiveFieldEnergy,
     InsufficientSourceEnergy,
     InsufficientKineticEnergy,
 }
@@ -24,6 +25,7 @@ impl std::fmt::Display for TransferError {
         match self {
             Self::NonFinite => write!(f, "energy transfer requires finite values"),
             Self::NegativeEnergy => write!(f, "energy reservoirs cannot be negative"),
+            Self::NonPositiveFieldEnergy => write!(f, "gravitational and levitational reservoirs must remain positive"),
             Self::InsufficientSourceEnergy =>
                 write!(f, "selected reservoir cannot supply the requested kinetic increase"),
             Self::InsufficientKineticEnergy =>
@@ -63,6 +65,10 @@ pub fn transfer_energy(
         return Err(TransferError::NegativeEnergy);
     }
 
+    if current.gravitational == 0.0 || current.levitational == 0.0 {
+        return Err(TransferError::NonPositiveFieldEnergy);
+    }
+
     let source_energy = match source {
         EnergyReservoir::Gravitational => current.gravitational,
         EnergyReservoir::Levitational => current.levitational,
@@ -79,6 +85,10 @@ pub fn transfer_energy(
     let updated_kinetic = current.kinetic + delta_kinetic;
     if !updated_source.is_finite() || !updated_kinetic.is_finite() {
         return Err(TransferError::NonFinite);
+    }
+
+    if updated_source == 0.0 {
+        return Err(TransferError::NonPositiveFieldEnergy);
     }
 
     let mut updated = current;
@@ -151,6 +161,22 @@ mod tests {
         assert_eq!(
             transfer_energy(initial(), EnergyReservoir::Gravitational, -31.0),
             Err(TransferError::InsufficientKineticEnergy)
+        );
+    }
+
+    #[test]
+    fn cannot_deplete_gravitational_energy_to_zero() {
+        assert_eq!(
+            transfer_energy(initial(), EnergyReservoir::Gravitational, 40.0),
+            Err(TransferError::NonPositiveFieldEnergy)
+        );
+    }
+
+    #[test]
+    fn cannot_deplete_levitational_energy_to_zero() {
+        assert_eq!(
+            transfer_energy(initial(), EnergyReservoir::Levitational, 30.0),
+            Err(TransferError::NonPositiveFieldEnergy)
         );
     }
 
