@@ -5,10 +5,13 @@
 //! Converting either field into an acceleration is intentionally unspecified.
 use crate::{ModelConstants, ParticleState, ValidationError, Vector3};
 
+/// Experimental ratio of the inner-core radius to the neutral radius.
+pub const INNER_RADIUS_RATIO: f64 = 0.001;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FieldError {
     InvalidInput(ValidationError),
-    CoincidentPositions,
+    UndefinedCoreRadius,
     NonFiniteResult,
 }
 
@@ -20,7 +23,7 @@ impl std::fmt::Display for FieldError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidInput(err) => err.fmt(f),
-            Self::CoincidentPositions => write!(f, "field undefined at a source position"),
+            Self::UndefinedCoreRadius => write!(f, "finite inner radius cannot be defined from X=p/m"),
             Self::NonFiniteResult => write!(f, "field calculation exceeded finite numerical range"),
         }
     }
@@ -62,8 +65,30 @@ impl FieldTotals {
     };
 }
 
-/// Evaluate magnitudes f_g = G*m/r² and f_l = G*p/r³.
-/// Gravitational vectors point toward the source; levitational vectors point away.
+/// A finite inner radius defined by R = 0.001 * X, X = p/m.
+/// For now the core model needs strictly positive mass and pulse.
+/// A zero source (m=p=0) yields no fields; cases m=0 or p=0 need
+/// a separate future physical definition and are rejected explicitly.
+pub fn inner_radius(source: &ParticleState) -> Result<f64, FieldError> {
+    source.validate()?;
+    if source.mass <= 0.0 || source.pulse <= 0.0 {
+        return Err(FieldError::UndefinedCoreRadius);
+    }
+    let radius = (source.pulse / source.mass) * INNER_RADIUS_RATIO;
+    if !radius.is_finite() || radius <= 0.0 {
+        return Err(FieldError::UndefinedCoreRadius);
+    }
+    Ok(radius)
+}
+
+/// Evaluate distinct gravitational and levitational fields.
+///
+/// r >= R: original inverse-square/inverse-cube magnitudes.
+/// 0 <= r < R: magnitudes decrease linearly from their value at R to zero
+/// at the center, with the same radial directions.
+///
+/// The interior vector calculation uses displacement/R directly, avoiding
+/// an additional division by r. R = 0.001*(p/m) is provisional.
 pub fn field_at(
     source: &ParticleState,
     observation: Vector3,
@@ -81,25 +106,58 @@ pub fn field_at(
         return Err(FieldError::NonFiniteResult);
     }
     let distance = dx.hypot(dy).hypot(dz);
-    if distance == 0.0 { return Err(FieldError::CoincidentPositions); }
     if !distance.is_finite() { return Err(FieldError::NonFiniteResult); }
 
-    let inv_r = 1.0 / distance;
-    let gravitational_magnitude = ((constants.g * inv_r) * source.mass) * inv_r;
-    let levitational_magnitude = (((constants.g * inv_r) * source.pulse) * inv_r) * inv_r;
+    if source.mass == 0.0 && source.pulse == 0.0 {
+        return Ok(SourceFields {
+            distance,
+            gravitational_magnitude: 0.0,
+            levitational_magnitude: 0.0,
+            gravitational: GravitationalField(Vector3::ZERO),
+            levitational: LevitationalField(Vector3::ZERO),
+        });
+    }
+
+    let radius = inner_radius(source)?;
+    let boundary_inv = 1.0 / radius;
+    let (gravitational_magnitude, levitational_magnitude, dir) =
+        if distance < radius {
+            // Boundary magnitudes times r/R; directions are displacement/r,
+            // thus the vector components are boundary magnitude * displacement/R.
+            let g_boundary = (constants.g * source.mass * boundary_inv) * boundary_inv;
+            let l_boundary = ((constants.g * source.pulse * boundary_inv) * boundary_inv) * boundary_inv;
+            let fraction = distance / radius;
+            (
+                g_boundary * fraction,
+                l_boundary * fraction,
+                Vector3::new(dx * boundary_inv, dy * boundary_inv, dz * boundary_inv),
+            )
+        } else {
+            let inv_r = 1.0 / distance;
+            (
+                (constants.g * source.mass * inv_r) * inv_r,
+                ((constants.g * source.pulse * inv_r) * inv_r) * inv_r,
+                Vector3::new(dx * inv_r, dy * inv_r, dz * inv_r),
+            )
+        };
     if !gravitational_magnitude.is_finite() || !levitational_magnitude.is_finite() {
         return Err(FieldError::NonFiniteResult);
     }
-    let direction = Vector3::new(dx * inv_r, dy * inv_r, dz * inv_r);
+
+    // Inside the core, dir already contains r/R. Use the boundary
+    // magnitudes for vectors, rather than multiplying by r/R twice.
+    let (g_vector_scale, l_vector_scale) = if distance < radius {
+        let g_boundary = (constants.g * source.mass * boundary_inv) * boundary_inv;
+        let l_boundary = ((constants.g * source.pulse * boundary_inv) * boundary_inv) * boundary_inv;
+        (g_boundary, l_boundary)
+    } else {
+        (gravitational_magnitude, levitational_magnitude)
+    };
     let gravitational = Vector3::new(
-        -gravitational_magnitude * direction.x,
-        -gravitational_magnitude * direction.y,
-        -gravitational_magnitude * direction.z,
+        -g_vector_scale * dir.x, -g_vector_scale * dir.y, -g_vector_scale * dir.z,
     );
     let levitational = Vector3::new(
-        levitational_magnitude * direction.x,
-        levitational_magnitude * direction.y,
-        levitational_magnitude * direction.z,
+        l_vector_scale * dir.x, l_vector_scale * dir.y, l_vector_scale * dir.z,
     );
     if !gravitational.is_finite() || !levitational.is_finite() {
         return Err(FieldError::NonFiniteResult);
@@ -209,10 +267,16 @@ mod tests {
     }
 
     #[test]
-    fn coincident_points_are_rejected() {
+    fn center_fields_are_zero() {
         assert_eq!(
             field_at(&source_at(0.0), Vector3::ZERO, &constants()),
-            Err(FieldError::CoincidentPositions)
+            Ok(SourceFields {
+                distance: 0.0,
+                gravitational_magnitude: 0.0,
+                levitational_magnitude: 0.0,
+                gravitational: GravitationalField(Vector3::ZERO),
+                levitational: LevitationalField(Vector3::ZERO),
+            })
         );
     }
 
@@ -241,4 +305,39 @@ mod tests {
             FieldTotals::ZERO
         );
     }
+
+    #[test]
+    fn inner_radius_is_one_thousandth_of_neutral_radius() {
+        approx(inner_radius(&source_at(0.0)).unwrap(), 0.003);
+    }
+
+    #[test]
+    fn interior_magnitudes_decrease_linearly() {
+        let r = inner_radius(&source_at(0.0)).unwrap();
+        let boundary = field_at(&source_at(0.0), Vector3::new(r, 0.0, 0.0), &constants()).unwrap();
+        let midpoint = field_at(&source_at(0.0), Vector3::new(r/2.0, 0.0, 0.0), &constants()).unwrap();
+        approx(midpoint.gravitational_magnitude / boundary.gravitational_magnitude, 0.5);
+        approx(midpoint.levitational_magnitude / boundary.levitational_magnitude, 0.5);
+        approx(midpoint.gravitational.0.x / boundary.gravitational.0.x, 0.5);
+        approx(midpoint.levitational.0.x / boundary.levitational.0.x, 0.5);
+    }
+
+    #[test]
+    fn undefined_neutral_radius_is_an_explicit_error() {
+        let mut source = source_at(0.0);
+        source.mass = 0.0;
+        assert_eq!(field_at(&source, Vector3::ZERO, &constants()), Err(FieldError::UndefinedCoreRadius));
+    }
+
+    #[test]
+    fn empty_source_has_no_self_field() {
+        let mut source = source_at(0.0);
+        source.mass = 0.0;
+        source.pulse = 0.0;
+        let fields = field_at(&source, Vector3::ZERO, &constants()).unwrap();
+        assert_eq!(fields.gravitational.0, Vector3::ZERO);
+        assert_eq!(fields.levitational.0, Vector3::ZERO);
+    }
+
+
 }
