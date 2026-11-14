@@ -10,6 +10,7 @@ mod energy;
 mod field;
 mod particle;
 mod response;
+mod step;
 mod validation;
 mod vector;
 
@@ -20,6 +21,7 @@ pub use energy::{energy_of, EnergyBreakdown};
 pub use field::{field_at, fields_at, FieldError, FieldTotals, GravitationalField, LevitationalField, SourceFields};
 pub use particle::ParticleState;
 pub use response::{acceleration_from_fields, gravitational_response_coefficient, levitational_response_coefficient, scale_gravitational_acceleration, scale_levitational_acceleration, AccelerationBreakdown, ResponseError, ResponseLaw};
+pub use step::{propose_step, StepError, StepProposal};
 pub use validation::ValidationError;
 pub use vector::Vector3;
 
