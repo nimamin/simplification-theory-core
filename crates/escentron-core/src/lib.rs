@@ -3,6 +3,7 @@
 //! This crate currently defines the Escentron data model and energy bookkeeping.
 //! It does not yet integrate equations of motion or claim physical validation.
 
+mod budget;
 mod constants;
 mod energy;
 mod field;
@@ -11,6 +12,7 @@ mod response;
 mod validation;
 mod vector;
 
+pub use budget::{kinetic_budget, BudgetError, KineticBudget};
 pub use constants::ModelConstants;
 pub use energy::{energy_of, EnergyBreakdown};
 pub use field::{field_at, fields_at, FieldError, FieldTotals, GravitationalField, LevitationalField, SourceFields};
