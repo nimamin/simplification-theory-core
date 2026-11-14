@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.2)
+# Escentron core: data contract (draft v0.3)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -45,29 +45,46 @@ The initial API rejects non-finite inputs, negative mass/pulse, non-finite energ
 
 These are conservative numerical input checks, **not proofs of physical validity**. Extreme finite position/velocity values may still overflow subsequent calculations.
 
-## Radial fields (implemented)
+## Independent fields (implemented)
 
-At a field observation point displaced by `r_vector` from the source Escentron,
-with `r = |r_vector| > 0` and outward unit vector `r_hat`:
+At an observation point, each Escentron source produces **two different field types**:
 
-- Gravitational magnitude: `f_g = G * m / r²` (inward)
-- Levitational magnitude: `f_l = G * p / r³` (outward)
-- Net radial field: `f_net = f_l - f_g`
-- Net field vector: `F_field = f_net * r_hat`
+- Gravitational field magnitude: `f_g = G * m / r²` (inward toward the source)
+- Levitational field magnitude: `f_l = G * p / r³` (outward from the source)
 
-The capitalization `F_field` is merely a field vector label, **not** a
-claim that it is a physical force on a target particle.
+Their magnitudes are calculated separately and converted into vectors with
+their respective directions. **The gravitational and levitational fields are
+heterogeneous; they cannot be summed or subtracted to form a net field.**
 
-For `m > 0`, `G > 0`, and `p > 0`, the net field changes sign at
-`X = p/m`: outward for `r < X`, inward for `r > X`. No softening or
-arbitrary minimum radius has been introduced; evaluation at `r = 0`
-returns an explicit error. Invalid and non-finite inputs and results are rejected.
+For multiple source Escentrons, contributions of the **same kind** are
+superposed vectorially at each observation point:
 
-The field is calculated from the **source** mass and pulse only.
-Exactly how a second Escentron responds to this field remains unspecified:
-the model needs a target coupling/induction rule before it can calculate
-two-body acceleration, time evolution, or stability. A zero of the net
-field by itself does not establish a stable atomic orbit.
+- `gravitational_total = sum(gravitational_field_from_each_source)`
+- `levitational_total = sum(levitational_field_from_each_source)`
+
+Thus a field query returns **two separate three-dimensional vectors**, not a
+single combined field. Vector sums are necessary because contributions of
+the same field type from different positions can point in different directions.
+The API distinguishes `GravitationalField` and `LevitationalField` as
+separate Rust types.
+
+`field_at(source, point, constants)` returns the two field types produced by
+one source. `fields_at(sources, point, constants)` sums contributions
+separately for all sources at a point.
+
+At a distance `X = p/m` for an isolated source (when `m > 0` and `G > 0`),
+the two field **magnitudes** are equal. This is an algebraic equality, **not
+a cancellation of heterogeneous fields**, nor a zero acceleration claim.
+
+Evaluation at the exact source position returns an error; zero-distance
+softening is not silently introduced. Source fields at a target's own
+position must exclude the target itself in any future interaction algorithm.
+
+**Target response is deferred.** The effects of both fields on an Escentron
+depend on additional target properties and rules to be specified later. Only
+the resulting acceleration contributions may be combined after those rules
+are established. No acceleration law, time integration, or particle stability
+is implied by field magnitudes alone.
 
 ## Explicitly outside this version
 
