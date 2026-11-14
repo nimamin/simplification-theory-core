@@ -12,7 +12,7 @@ mod response;
 mod validation;
 mod vector;
 
-pub use budget::{kinetic_budget, BudgetError, KineticBudget};
+pub use budget::{transfer_energy, EnergyReservoir, TransferError};
 pub use constants::ModelConstants;
 pub use energy::{energy_of, EnergyBreakdown};
 pub use field::{field_at, fields_at, FieldError, FieldTotals, GravitationalField, LevitationalField, SourceFields};
