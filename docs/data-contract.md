@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.7)
+# Escentron core: data contract (draft v0.8)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -135,32 +135,45 @@ or the limit on attainable velocity. The complete gravitational and levitational
 `ResponseLaw` trait remains separate; the new partial coefficient is not
 automatically incorporated into every custom implementation.
 
-## Kinetic-energy budget diagnostics (read-only)
+## Energy exchange between a field-specific reservoir and kinetic energy
 
-The following results are algebraic consequences of the model's energy
-decomposition, *not* a new law of motion:
+The model has three energy reservoirs in each Escentron, with fixed total:
 
-- `E_available_k = E_c - E_g - E_l`
-- `E_remaining_k = E_available_k - E_k`
-- `v_max_fixed_reservoirs = sqrt(E_available_k / k_k)` if `k_k > 0`
-- `v_energy_upper_bound = sqrt(E_c / k_k)` if `k_k > 0`
+`E_c = E_g + E_l + E_k`.
 
-The first speed limit **assumes both non-kinetic reservoirs remain fixed**.
-It does not determine how energy would be transferred during acceleration;
-an initial state with spare budget is not necessarily a valid conserved
-Escentron state. The second bound is an algebraic ceiling if all cosmic
-energy could hypothetically be assigned to kinetic energy. It is not a
-claim that any trajectory can attain that speed.
+When a **gravitational** field causes an acceleration that increases kinetic
+energy, that increase comes from **the same Escentron's gravitational
+energy**:
 
-`kinetic_budget(target, constants)` only reports these quantities, and
-rejects negative budgets, energy overspending and zero `k_k`.
-It does not update velocity, enforce a speed cap, choose a timestep,
-resolve acceleration direction, or transfer energy between reservoirs.
+- `E_g' = E_g - delta_E_k`
+- `E_k' = E_k + delta_E_k`
+- `E_l' = E_l`
 
-**Unresolved physics:** when the proposed acceleration speeds a particle
-up versus slows it down, which reservoir is changed, and by how much.
-The historical math spec's complete step-update rules must be checked
-before implementing that dynamics.
+When a **levitational** field causes such an acceleration, the energy comes
+from its **levitational energy**:
+
+- `E_l' = E_l - delta_E_k`
+- `E_k' = E_k + delta_E_k`
+- `E_g' = E_g`
+
+For the reverse conversion (negative `delta_E_k`), kinetic energy returns
+to the matching field-specific reservoir. The data transfer operation
+rejects spending more energy than a reservoir possesses. **No energy is
+transferred between Escentrons.**
+
+The Rust function `transfer_energy(current, source, delta_kinetic)`
+implements only this bookkeeping. Its caller specifies both the reservoir
+and the signed energy change. It does not decide how strong the acceleration
+is, how `delta_E_k` is calculated, how velocities change, or how the two
+field effects are reconciled during a step. Any such changes must first be
+specified by the theory's full dynamics law.
+
+**Correction of an earlier mistaken assumption:** non-kinetic energies are
+*not* fixed during acceleration. The previous `kinetic_budget` calculation
+and its `max_speed_with_current_reservoirs` field were removed because they
+misrepresented the dynamic energy conversion model. A physically reachable
+speed must be derived from the complete transfer and update rules rather
+than calculated using frozen reservoirs.
 
 ## Explicitly outside this version
 
