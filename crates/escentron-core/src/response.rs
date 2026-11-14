@@ -22,7 +22,7 @@ impl std::fmt::Display for ResponseError {
             Self::InvalidField(name) => write!(f, "non-finite {name} field"),
             Self::InvalidAcceleration(name) => write!(f, "non-finite {name} acceleration"),
             Self::NonFiniteTotal => write!(f, "non-finite total acceleration"),
-            Self::EnergyExceedsCosmic => write!(f, "gravitational energy exceeds cosmic energy"),
+            Self::EnergyExceedsCosmic => write!(f, "field-specific energy exceeds cosmic energy"),
         }
     }
 }
@@ -73,6 +73,50 @@ pub fn scale_gravitational_acceleration(
     );
     if !scaled.is_finite() {
         return Err(ResponseError::InvalidAcceleration("scaled gravitational"));
+    }
+    Ok(scaled)
+}
+
+
+/// Fraction of a target Escentron's cosmic energy stored as levitational energy.
+///
+/// alpha_l = E_l / E_c = (k_l * p) / E_c.
+/// This is a partial response coefficient, not a complete acceleration law.
+/// No clamping or energy redistribution is performed.
+pub fn levitational_response_coefficient(
+    target: &ParticleState,
+    constants: &ModelConstants,
+) -> Result<f64, ResponseError> {
+    let energy = energy_of(target, constants).map_err(ResponseError::InvalidTarget)?;
+    if energy.levitational > constants.cosmic_energy {
+        return Err(ResponseError::EnergyExceedsCosmic);
+    }
+    let coefficient = energy.levitational / constants.cosmic_energy;
+    if !coefficient.is_finite() {
+        return Err(ResponseError::InvalidAcceleration("levitational coefficient"));
+    }
+    Ok(coefficient)
+}
+
+/// Apply the target's levitational energy fraction to an independently
+/// determined *proposed* levitational acceleration.
+/// This does not convert a field to acceleration or impose a speed limit.
+pub fn scale_levitational_acceleration(
+    target: &ParticleState,
+    constants: &ModelConstants,
+    proposed: Vector3,
+) -> Result<Vector3, ResponseError> {
+    if !proposed.is_finite() {
+        return Err(ResponseError::InvalidAcceleration("proposed levitational"));
+    }
+    let alpha = levitational_response_coefficient(target, constants)?;
+    let scaled = Vector3::new(
+        proposed.x * alpha,
+        proposed.y * alpha,
+        proposed.z * alpha,
+    );
+    if !scaled.is_finite() {
+        return Err(ResponseError::InvalidAcceleration("scaled levitational"));
     }
     Ok(scaled)
 }
@@ -235,6 +279,65 @@ mod tests {
                 &target(), &constants, Vector3::new(f64::INFINITY, 0.0, 0.0),
             ),
             Err(ResponseError::InvalidAcceleration("proposed gravitational"))
+        );
+    }
+
+
+    #[test]
+    fn levitational_fraction_is_levitational_energy_over_cosmic_energy() {
+        let mut state = target();
+        state.pulse = 3.0;
+        let constants = crate::ModelConstants {
+            g: 1.0, k_g: 0.0, k_l: 10.0, k_k: 0.0, cosmic_energy: 100.0,
+        };
+        assert_eq!(levitational_response_coefficient(&state, &constants).unwrap(), 0.3);
+        assert_eq!(
+            scale_levitational_acceleration(
+                &state, &constants, Vector3::new(10.0, -20.0, 0.0),
+            ).unwrap(),
+            Vector3::new(3.0, -6.0, 0.0)
+        );
+    }
+
+    #[test]
+    fn zero_pulse_has_zero_levitational_response() {
+        let mut state = target();
+        state.pulse = 0.0;
+        let constants = crate::ModelConstants {
+            g: 1.0, k_g: 0.0, k_l: 10.0, k_k: 0.0, cosmic_energy: 100.0,
+        };
+        assert_eq!(levitational_response_coefficient(&state, &constants).unwrap(), 0.0);
+        assert_eq!(
+            scale_levitational_acceleration(
+                &state, &constants, Vector3::new(50.0, 0.0, 0.0),
+            ).unwrap(),
+            Vector3::ZERO
+        );
+    }
+
+    #[test]
+    fn levitational_energy_over_budget_is_rejected() {
+        let mut state = target();
+        state.pulse = 11.0;
+        let constants = crate::ModelConstants {
+            g: 1.0, k_g: 0.0, k_l: 10.0, k_k: 0.0, cosmic_energy: 100.0,
+        };
+        assert_eq!(
+            levitational_response_coefficient(&state, &constants),
+            Err(ResponseError::EnergyExceedsCosmic)
+        );
+    }
+
+    #[test]
+    fn nonfinite_proposed_levitational_acceleration_is_rejected() {
+        let constants = crate::ModelConstants {
+            g: 1.0, k_g: 0.0, k_l: 10.0, k_k: 0.0, cosmic_energy: 100.0,
+        };
+        assert_eq!(
+            scale_levitational_acceleration(
+                &target(), &constants, Vector3::new(f64::NAN, 0.0, 0.0),
+            ),
+            Err(ResponseError::InvalidAcceleration("proposed levitational"))
         );
     }
 
