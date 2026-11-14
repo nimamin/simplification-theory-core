@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.9)
+# Escentron core: data contract (draft v0.10)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -220,10 +220,50 @@ and speed limits. For example, a net acceleration perpendicular to the
 current velocity need not have the same kinetic-energy change as a parallel
 acceleration. That distinction must be resolved in the dynamics step.
 
+## Finite-step velocity and energy proposal (experimental)
+
+The `propose_step` function evaluates a **candidate**, not an accepted
+simulation update. It receives the target state, model constants, already
+computed gravitational and levitational acceleration vectors, and a
+positive finite time interval `dt`. It does **not** equate heterogeneous
+fields with accelerations or infer how a field generates an acceleration.
+
+1. Form total acceleration `A = a_g + a_l`.
+2. Propose `v' = v + A * dt` (constant acceleration over the candidate step).
+3. Evaluate the **finite-step** change
+   `delta_E_k = k_k * (|v'|² - |v|²)`.
+   Algebraically this includes `2*k_k*(v·A)*dt + k_k*|A|²*dt²`;
+   the quadratic term matters even when velocity and acceleration start
+   perpendicular.
+4. Allocate that signed change to the two field-specific reservoirs using
+   the already defined dot-product acceleration shares.
+5. Apply each allocation exclusively between its own non-kinetic reservoir
+   and kinetic energy, checking that no reservoir becomes negative.
+6. Return the proposed velocity and energy values **without mutating**
+   `ParticleState` or assuming a particular integration scheme for position.
+
+The candidate is rejected on invalid step size, invalid initial energy
+balance, non-finite arithmetic, unavailable reservoir energy, or mismatched
+totals. There is no artificial clamp or implicit energy transfer between
+gravity and levitation.
+
+**Important distinction:** the candidate may fail because the proposed
+acceleration would overspend its associated energy reservoir. The final
+dynamics must decide how to reduce or correct that acceleration, not merely
+reject steps. This is still a missing part of the model. In addition,
+the projection allocation follows the *resultant acceleration*, not the
+direction of velocity; alternative attribution rules based on kinetic
+work must not be substituted without an explicit theory decision.
+
+The numerical check currently uses a tolerance of
+`1e-10 * max(E_c, 1)` on energy sums. This is an implementation tolerance
+for exploratory floating-point tests, **not a physical law**. Tests
+and stability studies remain necessary before production simulation use.
+
 ## Explicitly outside this version
 
 - Full physical laws coupling either field to a target Escentron
-- Force, acceleration, integration, and time step
+- Complete acceleration law, energy-constrained correction, and accepted integration step
 - Per-step energy transfers or redistribution rules
 - Numerical stability strategy and collision handling
 - Units and numerical calibration
