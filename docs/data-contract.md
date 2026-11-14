@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.1)
+# Escentron core: data contract (draft v0.2)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -45,9 +45,33 @@ The initial API rejects non-finite inputs, negative mass/pulse, non-finite energ
 
 These are conservative numerical input checks, **not proofs of physical validity**. Extreme finite position/velocity values may still overflow subsequent calculations.
 
+## Radial fields (implemented)
+
+At a field observation point displaced by `r_vector` from the source Escentron,
+with `r = |r_vector| > 0` and outward unit vector `r_hat`:
+
+- Gravitational magnitude: `f_g = G * m / r²` (inward)
+- Levitational magnitude: `f_l = G * p / r³` (outward)
+- Net radial field: `f_net = f_l - f_g`
+- Net field vector: `F_field = f_net * r_hat`
+
+The capitalization `F_field` is merely a field vector label, **not** a
+claim that it is a physical force on a target particle.
+
+For `m > 0`, `G > 0`, and `p > 0`, the net field changes sign at
+`X = p/m`: outward for `r < X`, inward for `r > X`. No softening or
+arbitrary minimum radius has been introduced; evaluation at `r = 0`
+returns an explicit error. Invalid and non-finite inputs and results are rejected.
+
+The field is calculated from the **source** mass and pulse only.
+Exactly how a second Escentron responds to this field remains unspecified:
+the model needs a target coupling/induction rule before it can calculate
+two-body acceleration, time evolution, or stability. A zero of the net
+field by itself does not establish a stable atomic orbit.
+
 ## Explicitly outside this version
 
-- Field formulas and their interactions
+- Coupling between a source field and a target Escentron
 - Force, acceleration, integration, and time step
 - Per-step energy transfers or redistribution rules
 - Numerical stability strategy and collision handling
