@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.4)
+# Escentron core: data contract (draft v0.5)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -102,9 +102,36 @@ The response must eventually depend on the relevant target properties and
 other components required by the mathematical specification. The current
 trait may need extending once these are established.
 
+## Gravitational response coefficient (partial implementation)
+
+For a target Escentron:
+
+- `E_g = k_g * m`
+- `alpha_g = E_g / E_c`
+- `a_g_partial = alpha_g * a_g_proposed`
+
+Here `a_g_proposed` is a **separately determined acceleration proposal**,
+not the gravitational field itself. The implementation must never equate the
+heterogeneous fields with accelerations merely to obtain this proposal.
+
+`gravitational_response_coefficient(target, constants)` calculates the
+fraction of the target's cosmic energy stored as gravitational energy.
+`scale_gravitational_acceleration(target, constants, proposed)` multiplies
+an explicit proposal by that fraction. For zero mass and finite values, the
+coefficient is zero. If gravitational energy exceeds cosmic energy, the function
+reports an error instead of silently clamping the coefficient.
+
+This is **only the first factor** of the intended acceleration calculation.
+It does not yet model whether the response increases or decreases gravitational
+energy, the associated inverse conversion, energy conservation during a step,
+or the limit on attainable velocity. The full gravitational response law and
+the levitational response coefficient are still to be specified. The generic
+`ResponseLaw` trait remains separate; the new partial coefficient is not
+automatically incorporated into every custom implementation.
+
 ## Explicitly outside this version
 
-- Physical laws coupling either field to a target Escentron
+- Full physical laws coupling either field to a target Escentron
 - Force, acceleration, integration, and time step
 - Per-step energy transfers or redistribution rules
 - Numerical stability strategy and collision handling
