@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.10)
+# Escentron core: data contract (draft v0.11)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -76,9 +76,42 @@ At a distance `X = p/m` for an isolated source (when `m > 0` and `G > 0`),
 the two field **magnitudes** are equal. This is an algebraic equality, **not
 a cancellation of heterogeneous fields**, nor a zero acceleration claim.
 
-Evaluation at the exact source position returns an error; zero-distance
-softening is not silently introduced. Source fields at a target's own
-position must exclude the target itself in any future interaction algorithm.
+### Finite inner core — provisional regularization
+
+For a source with positive mass and pulse, the inner radius is defined as
+`R = INNER_RADIUS_RATIO * X = 0.001 * p/m`. The ratio **0.001** is
+a provisional fixed simulation parameter selected by the theory author.
+It is not a measured physical constant or a proven bound on stability.
+
+Outside the core (`r >= R`) the original field relations apply.
+Within the core (`0 <= r < R`), each field's **magnitude** is its
+boundary magnitude multiplied by `r/R`:
+
+- `f_g(r) = (G*m/R²) * (r/R)`
+- `f_l(r) = (G*p/R³) * (r/R)`
+
+The two types remain independent. Both vector fields and both magnitudes
+are zero at the source center, continuous at the inner boundary, and
+finite for every radius when model coefficients and arithmetic remain
+within the floating-point range. The inner vectors use the displacement
+divided by `R`, avoiding division by `r=0`.
+
+`fields_for_particle(sources, index, constants)` excludes the target's
+own field contribution **by index**, including when several particles
+occupy the same point. All other sources still contribute. The generic
+`fields_at` function evaluates all supplied sources, and is not an
+automatic self-excluding query.
+
+**Unresolved edge cases:** `X=p/m` cannot define a positive inner
+radius if either `m=0` or `p=0`. Such nonzero sources currently return
+`UndefinedCoreRadius` instead of silently restoring a singular field.
+A source with both parameters zero produces two zero fields. This is
+an implementation boundary, not a proposed physical explanation for
+zero-mass or zero-pulse Escentrons.
+
+The linear inner profile is a modeling choice; no claim is made that it
+alone guarantees finite acceleration, total energy conservation, or
+numerical stability for arbitrarily large `dt`.
 
 **Target response is deferred.** The effects of both fields on an Escentron
 depend on additional target properties and rules to be specified later. Only
