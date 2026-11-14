@@ -6,7 +6,7 @@ The goal is to implement a testable, reproducible computational model of the pro
 
 ## Status
 
-**Initial repository setup.** No physical equations or simulation claims have been implemented or validated yet.
+**Data-contract prototype.** Particle state, parameter validation, neutral radius and algebraic energy bookkeeping are implemented. No dynamics or scientific validation is implemented.
 
 ## Design goals
 
@@ -17,10 +17,10 @@ The goal is to implement a testable, reproducible computational model of the pro
 
 ## Repository structure
 
-- `crates/escentron-core`: domain model and simulation logic (currently a minimal placeholder).
+- `crates/escentron-core`: particle state and energy bookkeeping (no dynamics yet).
 - `crates/escentron-wasm`: reserved for a future WebAssembly adapter (not yet created).
 
-## Build
+Read the [data contract](docs/data-contract.md) for definitions, unresolved units and assumptions.\n\n## Build
 
 Install a recent stable Rust toolchain and run:
 
