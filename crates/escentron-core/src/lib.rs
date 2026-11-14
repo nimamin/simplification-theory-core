@@ -12,7 +12,7 @@ mod vector;
 
 pub use constants::ModelConstants;
 pub use energy::{energy_of, EnergyBreakdown};
-pub use field::{field_at, FieldError, RadialField};
+pub use field::{field_at, fields_at, FieldError, FieldTotals, GravitationalField, LevitationalField, SourceFields};
 pub use particle::ParticleState;
 pub use validation::ValidationError;
 pub use vector::Vector3;
