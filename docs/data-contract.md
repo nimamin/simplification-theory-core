@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.11)
+# Escentron core: data contract (draft v0.12)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -8,6 +8,13 @@ This document describes the **data representation and algebraic relations**, not
 - `velocity: Vector3` — `v`
 - `mass: f64` — `m`
 - `pulse: f64` — `p`
+
+**Existence invariant (theory assumption):** A valid Escentron must satisfy
+`m > 0` and `p > 0`. A zero mass or zero pulse is not a special particle
+species or a stable boundary state: it contradicts the proposed model of
+an existing Escentron. Such input is rejected. The hypothetical disappearance
+of a particle at zero is not an implemented transition (and is not treated
+as an energy-conserving deletion).
 
 Position and velocity are three-dimensional. Acceleration is **not stored** as an independent state variable. The data contract does not yet define a coordinate system, units or a time integrator.
 
@@ -35,13 +42,13 @@ It does not force conservation, modify particle parameters or perform integratio
 
 ## Neutral radius
 
-`X = p / m` when `m > 0`.
-
-For `m = 0`, the method returns `None` rather than introducing an assumed infinity, special radius, or photon rule. The model's treatment of this limit remains open.
+`X = p / m` for a valid Escentron, where both `m` and `p` are positive.
+Invalid states do not have a neutral radius; no zero-mass or zero-pulse
+Escentron exists in the model.
 
 ## Validation
 
-The initial API rejects non-finite inputs, negative mass/pulse, non-finite energy coefficients, and nonpositive `E_c`. Zero mass or pulse remains representable. `G` and conversion coefficients may be zero while their physical restrictions are unresolved. The code rejects overflowed computed energy.
+The API rejects non-finite inputs, nonpositive mass or pulse, non-finite energy coefficients, and nonpositive `E_c`. An existing Escentron must have strictly positive `m` and `p`. `G` and conversion coefficients may still be zero while their physical restrictions are unresolved. The code rejects overflowed computed energy.
 
 These are conservative numerical input checks, **not proofs of physical validity**. Extreme finite position/velocity values may still overflow subsequent calculations.
 
@@ -102,12 +109,11 @@ occupy the same point. All other sources still contribute. The generic
 `fields_at` function evaluates all supplied sources, and is not an
 automatic self-excluding query.
 
-**Unresolved edge cases:** `X=p/m` cannot define a positive inner
-radius if either `m=0` or `p=0`. Such nonzero sources currently return
-`UndefinedCoreRadius` instead of silently restoring a singular field.
-A source with both parameters zero produces two zero fields. This is
-an implementation boundary, not a proposed physical explanation for
-zero-mass or zero-pulse Escentrons.
+**Invalid particle states:** zero mass or zero pulse is disallowed by the
+existence invariant, including when both are zero. The field solver does
+not create zero-field stand-in particles for either case. Numerical cases
+where `X` or `R` underflows/overflows are reported as errors, not treated
+as physical disappearance.
 
 The linear inner profile is a modeling choice; no claim is made that it
 alone guarantees finite acceleration, total energy conservation, or
@@ -153,12 +159,12 @@ heterogeneous fields with accelerations merely to obtain this proposal.
 `gravitational_response_coefficient(target, constants)` calculates the
 fraction of the target's cosmic energy stored as gravitational energy.
 `scale_gravitational_acceleration(target, constants, proposed)` multiplies
-an explicit proposal by that fraction. For zero mass and finite values, the
-coefficient is zero. The matching `levitational_response_coefficient(target, constants)`
+an explicit proposal by that fraction. Zero mass is an invalid
+Escentron state and is rejected. The matching `levitational_response_coefficient(target, constants)`
 computes the fraction stored as levitational energy, and
 `scale_levitational_acceleration(target, constants, proposed)` applies it to a
-separately supplied levitational acceleration proposal. When pulse is zero,
-levitational response is zero. Each coefficient rejects a value above the
+separately supplied levitational acceleration proposal. Zero pulse is likewise
+invalid and rejected. Each coefficient rejects a value above the
 cosmic energy budget rather than silently clamping it.
 
 This is **only the first factor** of the intended acceleration calculation.
@@ -191,7 +197,8 @@ from its **levitational energy**:
 
 For the reverse conversion (negative `delta_E_k`), kinetic energy returns
 to the matching field-specific reservoir. The data transfer operation
-rejects spending more energy than a reservoir possesses. **No energy is
+rejects spending more energy than a reservoir possesses, **or exactly
+emptying its gravitational or levitational reservoir**. **No energy is
 transferred between Escentrons.**
 
 The Rust function `transfer_energy(current, source, delta_kinetic)`
