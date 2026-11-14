@@ -5,12 +5,14 @@
 
 mod constants;
 mod energy;
+mod field;
 mod particle;
 mod validation;
 mod vector;
 
 pub use constants::ModelConstants;
 pub use energy::{energy_of, EnergyBreakdown};
+pub use field::{field_at, FieldError, RadialField};
 pub use particle::ParticleState;
 pub use validation::ValidationError;
 pub use vector::Vector3;
