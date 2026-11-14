@@ -18,7 +18,7 @@ pub use allocation::{acceleration_shares, allocate_kinetic_change, AccelerationS
 pub use budget::{transfer_energy, EnergyReservoir, TransferError};
 pub use constants::ModelConstants;
 pub use energy::{energy_of, EnergyBreakdown};
-pub use field::{field_at, fields_at, FieldError, FieldTotals, GravitationalField, LevitationalField, SourceFields};
+pub use field::{field_at, fields_at, fields_for_particle, inner_radius, INNER_RADIUS_RATIO, FieldError, FieldTotals, GravitationalField, LevitationalField, SourceFields};
 pub use particle::ParticleState;
 pub use response::{acceleration_from_fields, gravitational_response_coefficient, levitational_response_coefficient, scale_gravitational_acceleration, scale_levitational_acceleration, AccelerationBreakdown, ResponseError, ResponseLaw};
 pub use step::{propose_step, StepError, StepProposal};
