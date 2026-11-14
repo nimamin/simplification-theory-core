@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.3)
+# Escentron core: data contract (draft v0.4)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -86,9 +86,25 @@ the resulting acceleration contributions may be combined after those rules
 are established. No acceleration law, time integration, or particle stability
 is implied by field magnitudes alone.
 
+## Target-response software boundary (interface only)
+
+The `ResponseLaw` Rust trait declares two independent operations:
+
+- `from_gravitational(target, gravitational_field) -> acceleration_vector`
+- `from_levitational(target, levitational_field) -> acceleration_vector`
+
+No physical implementation of either operation exists yet. A consumer must
+supply the response laws explicitly. `acceleration_from_fields` validates
+the inputs, evaluates both operations, then adds the **acceleration vectors**.
+The software test double is purely an arithmetic/API test, not a physics model.
+
+The response must eventually depend on the relevant target properties and
+other components required by the mathematical specification. The current
+trait may need extending once these are established.
+
 ## Explicitly outside this version
 
-- Coupling between a source field and a target Escentron
+- Physical laws coupling either field to a target Escentron
 - Force, acceleration, integration, and time step
 - Per-step energy transfers or redistribution rules
 - Numerical stability strategy and collision handling
