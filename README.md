@@ -6,7 +6,7 @@ The goal is to implement a testable, reproducible computational model of the pro
 
 ## Status
 
-**Data-contract prototype.** Particle state, parameter validation, neutral radius and algebraic energy bookkeeping are implemented. No dynamics or scientific validation is implemented.
+**Data-contract prototype.** Particle state, parameter validation, neutral radius, algebraic energy bookkeeping, and radial field evaluation are implemented. No target-response law, time integration, or scientific validation is implemented.
 
 ## Design goals
 
@@ -17,7 +17,7 @@ The goal is to implement a testable, reproducible computational model of the pro
 
 ## Repository structure
 
-- `crates/escentron-core`: particle state and energy bookkeeping (no dynamics yet).
+- `crates/escentron-core`: particle state, energy bookkeeping, and source fields (no time integration yet).
 - `crates/escentron-wasm`: reserved for a future WebAssembly adapter (not yet created).
 
 Read the [data contract](docs/data-contract.md) for definitions, unresolved units and assumptions.\n\n## Build
