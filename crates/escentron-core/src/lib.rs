@@ -1,8 +1,21 @@
 //! Experimental computational core for Simplification Theory.
 //!
-//! No physical dynamics are implemented in this initial scaffold.
+//! This crate currently defines the Escentron data model and energy bookkeeping.
+//! It does not yet integrate equations of motion or claim physical validation.
 
-/// Identifies the version of this Rust implementation.
+mod constants;
+mod energy;
+mod particle;
+mod validation;
+mod vector;
+
+pub use constants::ModelConstants;
+pub use energy::{energy_of, EnergyBreakdown};
+pub use particle::ParticleState;
+pub use validation::ValidationError;
+pub use vector::Vector3;
+
+/// Version of this Rust implementation.
 pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg(test)]
