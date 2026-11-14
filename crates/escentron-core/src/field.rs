@@ -68,9 +68,7 @@ impl FieldTotals {
 }
 
 /// A finite inner radius defined by R = 0.001 * X, X = p/m.
-/// For now the core model needs strictly positive mass and pulse.
-/// A zero source (m=p=0) yields no fields; cases m=0 or p=0 need
-/// a separate future physical definition and are rejected explicitly.
+/// The model requires strictly positive mass and pulse for every existing Escentron.
 pub fn inner_radius(source: &ParticleState) -> Result<f64, FieldError> {
     source.validate()?;
     if source.mass <= 0.0 || source.pulse <= 0.0 {
@@ -109,16 +107,6 @@ pub fn field_at(
     }
     let distance = dx.hypot(dy).hypot(dz);
     if !distance.is_finite() { return Err(FieldError::NonFiniteResult); }
-
-    if source.mass == 0.0 && source.pulse == 0.0 {
-        return Ok(SourceFields {
-            distance,
-            gravitational_magnitude: 0.0,
-            levitational_magnitude: 0.0,
-            gravitational: GravitationalField(Vector3::ZERO),
-            levitational: LevitationalField(Vector3::ZERO),
-        });
-    }
 
     let radius = inner_radius(source)?;
     let boundary_inv = 1.0 / radius;
@@ -353,19 +341,18 @@ mod tests {
     fn undefined_neutral_radius_is_an_explicit_error() {
         let mut source = source_at(0.0);
         source.mass = 0.0;
-        assert_eq!(field_at(&source, Vector3::ZERO, &constants()), Err(FieldError::UndefinedCoreRadius));
+        assert_eq!(field_at(&source, Vector3::ZERO, &constants()), Err(FieldError::InvalidInput(ValidationError::NonPositive("mass"))));
     }
 
     #[test]
-    fn empty_source_has_no_self_field() {
+    fn zero_pulse_source_is_invalid() {
         let mut source = source_at(0.0);
-        source.mass = 0.0;
         source.pulse = 0.0;
-        let fields = field_at(&source, Vector3::ZERO, &constants()).unwrap();
-        assert_eq!(fields.gravitational.0, Vector3::ZERO);
-        assert_eq!(fields.levitational.0, Vector3::ZERO);
+        assert_eq!(
+            field_at(&source, Vector3::ZERO, &constants()),
+            Err(FieldError::InvalidInput(ValidationError::NonPositive("pulse")))
+        );
     }
-
 
     #[test]
     fn particle_does_not_include_its_own_fields() {
