@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.5)
+# Escentron core: data contract (draft v0.6)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -102,13 +102,16 @@ The response must eventually depend on the relevant target properties and
 other components required by the mathematical specification. The current
 trait may need extending once these are established.
 
-## Gravitational response coefficient (partial implementation)
+## Gravitational and levitational response coefficients (partial implementation)
 
 For a target Escentron:
 
 - `E_g = k_g * m`
 - `alpha_g = E_g / E_c`
 - `a_g_partial = alpha_g * a_g_proposed`
+- `E_l = k_l * p`
+- `alpha_l = E_l / E_c`
+- `a_l_partial = alpha_l * a_l_proposed`
 
 Here `a_g_proposed` is a **separately determined acceleration proposal**,
 not the gravitational field itself. The implementation must never equate the
@@ -118,14 +121,17 @@ heterogeneous fields with accelerations merely to obtain this proposal.
 fraction of the target's cosmic energy stored as gravitational energy.
 `scale_gravitational_acceleration(target, constants, proposed)` multiplies
 an explicit proposal by that fraction. For zero mass and finite values, the
-coefficient is zero. If gravitational energy exceeds cosmic energy, the function
-reports an error instead of silently clamping the coefficient.
+coefficient is zero. The matching `levitational_response_coefficient(target, constants)`
+computes the fraction stored as levitational energy, and
+`scale_levitational_acceleration(target, constants, proposed)` applies it to a
+separately supplied levitational acceleration proposal. When pulse is zero,
+levitational response is zero. Each coefficient rejects a value above the
+cosmic energy budget rather than silently clamping it.
 
 This is **only the first factor** of the intended acceleration calculation.
 It does not yet model whether the response increases or decreases gravitational
 energy, the associated inverse conversion, energy conservation during a step,
-or the limit on attainable velocity. The full gravitational response law and
-the levitational response coefficient are still to be specified. The generic
+or the limit on attainable velocity. The complete gravitational and levitational response laws remain to be specified. The generic
 `ResponseLaw` trait remains separate; the new partial coefficient is not
 automatically incorporated into every custom implementation.
 
