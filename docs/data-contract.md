@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.13)
+# Escentron core: data contract (draft v0.14)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -339,6 +339,48 @@ the full acceleration is not equivalent.
 This event solver, its coupling to motion, and the choice of strictly
 positive numerical minimum for `m` and `p` remain unimplemented.
 No claim of unconditional stability for large `dt` is made.
+
+## Restart-on-depletion reference simulation (experimental)
+
+`reference_run(initial, constants, settings, acceleration_at)` is an
+experimental single-particle, finite-duration *reference* loop. Its callback
+receives the current particle state and time and returns **separate
+gravitational and levitational acceleration vectors**. The callback must be
+deterministic and must compute each new acceleration from the **updated**
+state; no particular field-to-acceleration physics has been assumed.
+
+1. Start from the saved initial state with a specified number of equal
+   timesteps and `dt = duration / steps`.
+2. On each step, call the acceleration callback, evaluate `propose_step`,
+   and (for successful proposals) reconstruct mass and pulse from their
+   individual energies: `m'=E_g'/k_g`, `p'=E_l'/k_l`.
+   This requires `k_g>0`, `k_l>0`, `k_k>0`.
+3. Apply an explicitly provisional semi-implicit position update
+   `x'=x+v'*dt`. No physical integration scheme is claimed.
+4. If a step would deplete or overdraw either field-specific reservoir
+   (or overdraw kinetic energy), **discard the entire trial** and restart
+   from the **same initial conditions**, doubling the step count and
+   thereby halving `dt`.
+5. Stop on the first full successful trial or with a bounded retry-limit
+   error once further timestep subdivision would exceed `max_steps`.
+   Other errors such as non-finite acceleration terminate immediately.
+
+This does **not** clamp negative energy to zero, invent new energy, mutate
+the supplied initial state, or transfer energy directly between the two
+non-kinetic reservoirs. Gravitational and levitational energies must remain
+strictly positive for every accepted state.
+
+A trial that finishes without overdraw is **not automatically converged**
+or physically stable. To build a reliable training reference, compare
+the final state and energy trajectory after further decreasing `dt`,
+verify energy conservation and inspect sensitivity to the integration
+scheme. No neural-network training pipeline has been implemented yet.
+
+The existing field API and response-coefficient helpers are not
+automatically wired into this reference runner: the missing complete
+response law must still be supplied by its callback. The built-in tests
+use synthetic acceleration callbacks to test the *software controller*,
+not to validate Simplification Theory.
 
 ## Explicitly outside this version
 
