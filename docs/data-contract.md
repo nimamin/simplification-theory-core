@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.15)
+# Escentron core: data contract (draft v0.16)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -423,6 +423,44 @@ The acceleration callback must be deterministic and stateless between
 reference trials. Meaningful absolute/relative tolerances depend on the
 project's eventual physical units. The tests use synthetic acceleration
 callbacks and do not validate an Escentron field-response law.
+
+## Connecting external fields to the reference runner (v0.16)
+
+The `coupling.rs` adapter connects previously independent software layers
+without inventing a missing field-to-acceleration physical equation:
+
+1. Calculate distinct gravitational and levitational fields at a target's
+   current position, excluding that target source by its stable array index.
+2. Ask a caller-supplied `ResponseLaw` to convert each field **separately**
+   into an **unscaled acceleration proposal**.
+3. Apply `alpha_g=E_g/E_c` only to the gravitational proposal and
+   `alpha_l=E_l/E_c` only to the levitational proposal, exactly once.
+4. Pass the two resulting acceleration vectors to the reference runner.
+5. Update the target state after each successful step; the next evaluation
+   uses its new position, mass, pulse and velocity.
+
+`reference_with_fixed_sources` supports restart-on-depletion.
+`convergence_with_fixed_sources` supports fixed-timestep refinement
+comparison. Both evolve **only one target**. Every other Escentron in the
+provided source array is **held fixed in position, mass and pulse** over the
+trial. This is an intentional reference experiment, NOT a self-consistent
+multi-particle simulation.
+
+The `ResponseLaw` implementation is required and cannot be omitted.
+It must return *raw* acceleration proposals without applying the energy
+fractions itself. In-memory mock laws in unit tests are **software-only**
+and are not statements of physics. In particular, merely returning the
+field vector as acceleration is not an endorsed field-to-acceleration law.
+
+New checked callbacks in `reference_run_checked` and
+`convergence_test_checked` propagate errors in field/response calculation;
+they never turn a failed field evaluation into a fabricated acceleration.
+
+**Remaining gap before scientific training data:** define the actual
+physical field-to-acceleration conversion and ensure the energy attribution
+and accepted timestep rules are faithful to the latest mathematical spec.
+The current pipeline must not be presented as a fully validated physics
+solver or used to train a model as if it were established ground truth.
 
 ## Explicitly outside this version
 
