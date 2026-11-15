@@ -24,6 +24,15 @@ pub enum ReferenceError {
     Step(StepError),
     RetryLimitReached { last_step_error: StepError, attempted_steps: usize },
     NonFiniteState,
+    Field(crate::FieldError),
+    Response(crate::ResponseError),
+}
+
+impl From<crate::FieldError> for ReferenceError {
+    fn from(error: crate::FieldError) -> Self { Self::Field(error) }
+}
+impl From<crate::ResponseError> for ReferenceError {
+    fn from(error: crate::ResponseError) -> Self { Self::Response(error) }
 }
 
 impl std::fmt::Display for ReferenceError {
@@ -66,6 +75,22 @@ pub fn reference_run<F>(
 where
     F: Fn(&ParticleState, f64) -> (Vector3, Vector3),
 {
+    reference_run_checked(initial, constants, settings, |state, time| {
+        Ok(acceleration_at(state, time))
+    })
+}
+
+/// A fallible version of the reference runner. Invalid field/response
+/// evaluations fail explicitly instead of being converted to bogus vectors.
+pub fn reference_run_checked<F>(
+    initial: &ParticleState,
+    constants: &ModelConstants,
+    settings: RetrySettings,
+    acceleration_at: F,
+) -> Result<ReferenceResult, ReferenceError>
+where
+    F: Fn(&ParticleState, f64) -> Result<(Vector3, Vector3), ReferenceError>,
+{
     initial.validate().map_err(ReferenceError::InvalidInput)?;
     constants.validate().map_err(ReferenceError::InvalidInput)?;
     if constants.k_g <= 0.0 || constants.k_l <= 0.0 || constants.k_k <= 0.0 {
@@ -88,7 +113,7 @@ where
         let mut failure = None;
         for index in 0..steps {
             let time = index as f64 * dt;
-            let (g, l) = acceleration_at(&state, time);
+            let (g, l) = acceleration_at(&state, time)?;
             let proposal = match propose_step(&state, constants, g, l, dt) {
                 Ok(proposal) => proposal,
                 Err(err) => { failure = Some(err); break; }
