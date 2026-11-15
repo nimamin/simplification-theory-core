@@ -5,10 +5,10 @@
 //! reference interval. This is NOT a self-consistent multi-body simulation.
 use crate::{
     acceleration_from_fields, convergence_test_checked, fields_for_target_state,
-    reference_run_checked, scale_gravitational_acceleration, scale_levitational_acceleration,
+    reference_run_checked, gravitational_response_coefficient, levitational_response_coefficient,
     AccelerationBreakdown, ConvergenceError, ConvergenceResult, ConvergenceSettings,
     ModelConstants, ParticleState, ReferenceError, ReferenceResult, ResponseError, ResponseLaw,
-    RetrySettings, Vector3,
+    RetrySettings, Vector3, FieldTotals,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -24,28 +24,33 @@ impl From<ResponseError> for CouplingError {
     fn from(error: ResponseError) -> Self { Self::Response(error) }
 }
 
-/// Query separate fields from other particles, convert each to an unscaled
-/// acceleration proposal via a supplied law, and apply the target's energy
-/// fraction alpha_g = E_g/E_c or alpha_l = E_l/E_c, exactly once.
-///
-/// The law returns RAW proposals; implementations must NOT apply the energy
-/// response fractions themselves. No universal field-to-acceleration
-/// conversion law has been established.
-pub fn coupled_acceleration(
-    sources: &[ParticleState],
-    target_index: usize,
-    current_target: &ParticleState,
-    constants: &ModelConstants,
-    law: &impl ResponseLaw,
+/// Full auditable breakdown at a single position. The two field types
+/// remain separate and are never numerically added.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CouplingTrace {
+    pub fields: FieldTotals,
+    /// Raw acceleration proposals from a supplied, explicitly chosen law.
+    pub proposed: AccelerationBreakdown,
+    pub gravitational_energy_fraction: f64,
+    pub levitational_energy_fraction: f64,
+    /// The two response-scaled accelerations and their vector resultant.
+    pub applied: AccelerationBreakdown,
+}
+
+fn scale_vector(vector: Vector3, factor: f64) -> Vector3 {
+    Vector3::new(vector.x * factor, vector.y * factor, vector.z * factor)
+}
+
+fn checked_acceleration(
+    gravitational: Vector3,
+    levitational: Vector3,
 ) -> Result<AccelerationBreakdown, CouplingError> {
-    let fields = fields_for_target_state(sources, target_index, current_target, constants)?;
-    let proposed = acceleration_from_fields(current_target, &fields, law)?;
-    let gravitational = scale_gravitational_acceleration(
-        current_target, constants, proposed.gravitational,
-    )?;
-    let levitational = scale_levitational_acceleration(
-        current_target, constants, proposed.levitational,
-    )?;
+    if !gravitational.is_finite() {
+        return Err(CouplingError::Response(ResponseError::InvalidAcceleration("gravitational")));
+    }
+    if !levitational.is_finite() {
+        return Err(CouplingError::Response(ResponseError::InvalidAcceleration("levitational")));
+    }
     let total = Vector3::new(
         gravitational.x + levitational.x,
         gravitational.y + levitational.y,
@@ -55,6 +60,50 @@ pub fn coupled_acceleration(
         return Err(CouplingError::Response(ResponseError::NonFiniteTotal));
     }
     Ok(AccelerationBreakdown { gravitational, levitational, total })
+}
+
+/// Trace the complete *known* part of field-to-acceleration processing:
+/// separate fields -> explicit raw law -> individual energy fractions
+/// -> separately scaled acceleration vectors.
+///
+/// This function intentionally does not assume any missing physical
+/// relation for conversion from fields to raw acceleration proposals.
+pub fn coupling_trace(
+    sources: &[ParticleState],
+    target_index: usize,
+    current_target: &ParticleState,
+    constants: &ModelConstants,
+    law: &impl ResponseLaw,
+) -> Result<CouplingTrace, CouplingError> {
+    let fields = fields_for_target_state(sources, target_index, current_target, constants)?;
+    let proposed = acceleration_from_fields(current_target, &fields, law)?;
+    let gravitational_energy_fraction =
+        gravitational_response_coefficient(current_target, constants)?;
+    let levitational_energy_fraction =
+        levitational_response_coefficient(current_target, constants)?;
+    let applied = checked_acceleration(
+        scale_vector(proposed.gravitational, gravitational_energy_fraction),
+        scale_vector(proposed.levitational, levitational_energy_fraction),
+    )?;
+    Ok(CouplingTrace {
+        fields,
+        proposed,
+        gravitational_energy_fraction,
+        levitational_energy_fraction,
+        applied,
+    })
+}
+
+/// Lightweight path for the reference solver. The independent field response
+/// and the two energy fractions are applied exactly once.
+pub fn coupled_acceleration(
+    sources: &[ParticleState],
+    target_index: usize,
+    current_target: &ParticleState,
+    constants: &ModelConstants,
+    law: &impl ResponseLaw,
+) -> Result<AccelerationBreakdown, CouplingError> {
+    Ok(coupling_trace(sources, target_index, current_target, constants, law)?.applied)
 }
 
 /// Run the reference integrator with a stationary environment and a supplied
@@ -180,4 +229,28 @@ mod tests {
             Err(CouplingError::Field(crate::FieldError::InvalidTargetIndex))
         );
     }
+    #[test]
+    fn trace_keeps_raw_fields_proposals_and_energy_fractions_separate() {
+        let s = sources();
+        let trace = coupling_trace(&s, 0, &s[0], &constants(), &IdentityMock).unwrap();
+        assert!((trace.fields.gravitational.0.x - 0.02).abs() < 1e-12);
+        assert!((trace.fields.levitational.0.x + 0.006).abs() < 1e-12);
+        assert_eq!(trace.gravitational_energy_fraction, 0.6);
+        assert_eq!(trace.levitational_energy_fraction, 0.3);
+        assert_eq!(trace.proposed.gravitational, trace.fields.gravitational.0);
+        assert_eq!(trace.proposed.levitational, trace.fields.levitational.0);
+        assert!((trace.applied.gravitational.x - 0.012).abs() < 1e-12);
+        assert!((trace.applied.levitational.x + 0.0018).abs() < 1e-12);
+    }
+
+    #[test]
+    fn moved_target_trace_uses_new_position_not_original() {
+        let s = sources();
+        let first = coupling_trace(&s, 0, &s[0], &constants(), &IdentityMock).unwrap();
+        let mut moved = s[0];
+        moved.position = Vector3::new(1.0, 0.0, 0.0);
+        let second = coupling_trace(&s, 0, &moved, &constants(), &IdentityMock).unwrap();
+        assert_ne!(first.fields.gravitational.0.x, second.fields.gravitational.0.x);
+    }
+
 }
