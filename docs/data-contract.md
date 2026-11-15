@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.23)
+# Escentron core: data contract (draft v0.24)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -728,6 +728,55 @@ solvers of the same equations. Numerical tests are exploratory and
 not evidence that either hypothesis reproduces nature.
 
 Rust compilation/tests have not yet been verified in this session.
+
+## Fixed-nucleus radial balance experiment (v0.24)
+
+With a fixed nucleus at the origin and a radial target at distance `r`,
+outside the nucleus's inner regularization radius, the model uses:
+
+- `a_g = -(k_g*m_t/E_c)*G*M/r^2`
+- `a_l = +(k_l*p_t/E_c)*G*P/r^3`
+- The *instantaneous acceleration-balance radius* is
+  `r_eq = (k_l*p_t*P)/(k_g*m_t*M)` for strictly positive factors.
+  This is generally **not** the nucleus's neutral field radius `P/M`:
+  target energy fractions matter.
+
+A separate Python reproduction of the existing projection-clipped
+energy allocator tested `E_c=10`, `G=8`, all energy coefficients 1,
+target `m=4, p=6, v=0`, frozen nucleus `M=6, P=3`.
+The initial balance radius is `r_eq=0.75`.
+
+Over a duration of 4 model-time units, with refinements from 4,000
+to 32,000 steps:
+
+- At `r=0.75`, acceleration is zero, and target state remains unchanged
+  up to floating-point roundoff.
+- At `r=0.74`, initial radial acceleration is outward; the trajectory
+  crosses balance and oscillates around it.
+- At `r=0.76`, initial radial acceleration is inward; the trajectory
+  crosses balance and oscillates around it.
+- All tested accepted trajectories retain strictly positive gravitational
+  and levitational energies, with total energy within roughly 4e-14 of 10.
+- Endpoints approach each other under timestep refinement, although
+  **perpetual** stability is not proven.
+- A separate 100-time-unit calculation at dt=0.000125 retained positive
+  energies and oscillations in both perturbed scenarios.
+
+The target mass and pulse DO change during radial oscillations; thus
+the instantaneous balance radius also changes. No direct
+gravity-to-levitation energy transfer is permitted; the current allocator
+attributes net kinetic-energy change to whichever channel survives its
+projection cancellation.
+
+Added Rust unit tests in `coupling.rs` for exact radial balance and
+the initial restoring response after small perturbations. They have
+not been confirmed with a Rust test run. The independent Python
+experiment is not a Rust execution.
+
+**Scope:** This is a 1D radial perturbation about a FROZEN nucleus.
+It demonstrates local restoring behavior under the current hypothesis;
+it is not a 3D orbital electron, a quantum model, an atomic energy-level
+prediction, or experimental evidence of atomic stability.
 
 ## Explicitly outside this version
 
