@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.18)
+# Escentron core: data contract (draft v0.19)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -520,6 +520,48 @@ recorded in v0.18; this question is now resolved for the current model.
 The trace tests use software-only mock laws; passing these tests verifies
 field separation and energy-fraction wiring, not a scientifically grounded
 acceleration formula.
+
+## Reference dataset generation (v0.19, pending CI verification)
+
+The executable Rust example
+`crates/escentron-core/examples/generate_reference_dataset.rs` enumerates
+27 deterministic initial target states under one fixed external Escentron,
+using provisional numerical values for `G`, energy-conversion factors and
+`E_c`. It runs the confirmed field-to-acceleration rule through the
+single-target reference solver and the timestep convergence check.
+
+The convergence checker now **automatically refines an initially depleted
+trial** (discarding it and restarting from the exact same initial state)
+until a valid fixed-step baseline is available, subject to `max_steps`.
+It then compares N/2N/4N-like refinements, requiring two consecutive
+agreement checks. Other errors are not hidden by refinement.
+
+Only converged cases are printed to **CSV on stdout**, with initial state,
+initial energies, separate gravitational/levitational accelerations,
+a single coarse-step velocity proposal and whether that proposal passed
+the existing energy checks, the reference final state and its energies,
+accepted step count, final timestep and four convergence differences.
+Failed or nonconverged cases are reported to stderr and omitted from CSV.
+This is intentional selection, and such records must not silently be
+considered successful training examples.
+
+Run locally with:
+`cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings`
+then
+`cargo run --release --example generate_reference_dataset > reference-dataset.csv`.
+
+The GitHub Actions workflow is configured to execute these commands and
+upload `reference-dataset.csv` as a `reference-dataset` artifact after a
+successful run. **The workflow's success has not yet been confirmed.**
+No claim that a populated CSV was generated is made until the workflow
+actually completes. No neural network or symbolic-regression model has
+yet been trained.
+
+These are **synthetic model-consistency** examples, NOT measurements or
+experimental confirmation of Simplification Theory. The fixed-source
+environment and existing approximate energy allocation may bias training;
+the sampler also needs representative depletion-edge conditions before a
+learned large-timestep corrector can be assessed.
 
 ## Explicitly outside this version
 
