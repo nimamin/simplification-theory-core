@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.20)
+# Escentron core: data contract (draft v0.21)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -590,6 +590,56 @@ learned correction, not evidence for or against the physics hypothesis.
 Before symbolic regression, expand the dataset across directions,
 velocities, field strengths, and near-depletion cases, and verify
 numerical convergence independently of the training split.
+
+## Independent continuous-limit constant-field benchmarks (v0.21)
+
+Single active reservoir, constant signed 1D field `F`, positive kinetic
+coefficient `k_k`, and cosmic energy `E_c`:
+
+- `C = E_0 + k_k * v_0^2` is constant.
+- `dv/dt = (F/E_c) * (C - k_k*v^2)`.
+- Set `U=sqrt(C/k_k)`, `z_0=atanh(v_0/U)`,
+  `z(t)=z_0+(F/E_c)*sqrt(C*k_k)*t`.
+- Continuous solution: `v(t)=U*tanh(z(t))`;
+  `E(t)=C/cosh(z(t))^2`.
+
+The `single_field_constant_exact` Rust function independently implements
+this continuous solution without calling `propose_step` or taking any
+numerical integration steps. This is the theoretical continuous limit of
+the assumed transfer law, not an experimentally established natural law.
+
+For two **co-directed positive constant fields** and 1D forward displacement
+`x >= 0`, the continuous allocation rule implies:
+
+- `E_g(x)=E_g(0)*exp(-2*k_k*f_g*x/E_c)`
+- `E_l(x)=E_l(0)*exp(-2*k_k*f_l*x/E_c)`
+
+The `aligned_fields_energy_at_distance` function implements the latter
+**energy-versus-displacement** invariant; this is not an explicit
+position-versus-time solution. The opposing-field case has different
+channel attribution and is not covered by the aligned result.
+
+A standalone Python benchmark (`analytic_benchmark.py`) evaluated
+the four constant-field test cases. The two single-field formulas
+agreed with an independent high-accuracy continuous-time ODE solver
+to about 1e-14 in velocity. In the aligned two-field case, the numerical
+ODE drove the extremely small gravitational reservoir a few units
+below zero at around 1e-15 due to **floating-point solver error**;
+the analytic positive exponential evaluates to approximately 2.36e-45
+at that position. This is a numerical precision issue, not evidence
+of physical negative energy.
+
+IMPORTANT: the earlier constant-field stress-test report marked
+**only the gravity-only case converged** under its 1e-8 consecutive-
+refinement criterion; the other three reached their test budget before
+certified convergence. Their end states can be useful pilot estimates,
+but must not be labeled converged under that strict criterion.
+
+The Rust analytic functions, unit tests, and CI compilation have not
+yet been confirmed by running Rust in this environment. Both
+analytical formulas return an explicit `PrecisionLimit` when floating-
+point arithmetic cannot represent the required strictly positive
+reservoir; they never silently clamp to a small invented energy.
 
 ## Explicitly outside this version
 
