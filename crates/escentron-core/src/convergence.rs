@@ -5,7 +5,7 @@
 //! refinement comparisons satisfy all absolute+relative tolerances.
 //! This checks discretization agreement, not physical validity.
 use crate::{
-    reference_run, ModelConstants, ParticleState, ReferenceError, ReferenceResult,
+    reference_run_checked, ModelConstants, ParticleState, ReferenceError, ReferenceResult,
     RetrySettings, Vector3,
 };
 
@@ -98,6 +98,21 @@ pub fn convergence_test<F>(
 where
     F: Fn(&ParticleState, f64) -> (Vector3, Vector3),
 {
+    convergence_test_checked(initial, constants, settings, |state, time| {
+        Ok(acceleration_at(state, time))
+    })
+}
+
+/// Fallible convergence testing for coupled field/acceleration evaluations.
+pub fn convergence_test_checked<F>(
+    initial: &ParticleState,
+    constants: &ModelConstants,
+    settings: ConvergenceSettings,
+    acceleration_at: F,
+) -> Result<ConvergenceResult, ConvergenceError>
+where
+    F: Fn(&ParticleState, f64) -> Result<(Vector3, Vector3), ReferenceError>,
+{
     if !settings.duration.is_finite() || settings.duration <= 0.0
         || settings.initial_steps == 0
         || settings.max_steps < settings.initial_steps
@@ -111,7 +126,7 @@ where
     }
 
     let run = |steps| {
-        reference_run(
+        reference_run_checked(
             initial,
             constants,
             RetrySettings {
