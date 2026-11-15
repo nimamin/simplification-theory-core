@@ -329,4 +329,62 @@ mod tests {
         assert!(result.reference.state.pulse > 0.0);
     }
 
+    // Fixed nucleus is an intentionally simplified single-moving-target test,
+    // not a claim of a self-consistent electronic atom or quantum orbital.
+    fn radial_atom_inputs(radius: f64) -> ([ParticleState; 2], ModelConstants) {
+        let constants = ModelConstants {
+            g: 8.0, k_g: 1.0, k_l: 1.0, k_k: 1.0, cosmic_energy: 10.0,
+        };
+        let electron = ParticleState {
+            position: Vector3::new(radius, 0.0, 0.0),
+            velocity: Vector3::ZERO, mass: 4.0, pulse: 6.0,
+        };
+        let nucleus = ParticleState {
+            position: Vector3::ZERO,
+            velocity: Vector3::new(1.0, 0.0, 0.0),
+            mass: 6.0, pulse: 3.0,
+        };
+        ([electron, nucleus], constants)
+    }
+
+    #[test]
+    fn exactly_balanced_radial_target_keeps_energies_unchanged() {
+        // r_eq = (target pulse * nucleus pulse) /
+        //        (target mass * nucleus mass) = 0.75
+        let (sources, constants) = radial_atom_inputs(0.75);
+        let a = model_acceleration(&sources, 0, &sources[0], &constants).unwrap();
+        assert!((a.total.x).abs() < 1e-12);
+        let result = reference_model_with_fixed_sources(
+            &sources, 0, &constants,
+            RetrySettings {
+                duration: 1.0, initial_steps: 1000, max_steps: 1000,
+            },
+        ).unwrap();
+        assert_eq!(result.state.position, sources[0].position);
+        assert_eq!(result.state.velocity, sources[0].velocity);
+        assert_eq!(result.state.mass, sources[0].mass);
+        assert_eq!(result.state.pulse, sources[0].pulse);
+    }
+
+    #[test]
+    fn radial_perturbations_accelerate_toward_balance() {
+        let (inside, constants) = radial_atom_inputs(0.74);
+        let (outside, _) = radial_atom_inputs(0.76);
+        let ai = model_acceleration(&inside, 0, &inside[0], &constants).unwrap();
+        let ao = model_acceleration(&outside, 0, &outside[0], &constants).unwrap();
+        assert!(ai.total.x > 0.0, "inside must initially accelerate outward");
+        assert!(ao.total.x < 0.0, "outside must initially accelerate inward");
+        for sources in [inside, outside] {
+            let result = reference_model_with_fixed_sources(
+                &sources, 0, &constants,
+                RetrySettings {
+                    duration: 0.2, initial_steps: 2000, max_steps: 2000,
+                },
+            ).unwrap();
+            assert!(result.state.mass > 0.0 && result.state.pulse > 0.0);
+            let energy = crate::energy_of(&result.state, &constants).unwrap();
+            assert!((energy.total() - constants.cosmic_energy).abs() < 1e-9);
+        }
+    }
+
 }
