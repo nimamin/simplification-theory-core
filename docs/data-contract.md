@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.22)
+# Escentron core: data contract (draft v0.23)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -678,6 +678,56 @@ The independent experiment source and CSV report were produced as
 conversation artifacts; this document records the method and its
 limitations rather than treating experimental output as verified
 core behavior.
+
+## Three-dimensional constant fields: competing reservoir attribution hypotheses (v0.23)
+
+A new independent Python comparison evaluates five constant-field cases:
+gravity-dominant opposition, levitation-dominant opposition, orthogonal,
+oblique, and parallel-aligned fields. The initial state is common:
+`E_c=10`, `k_k=1`, `E_g=0.001`, `v=(0.1,0.04,0)`,
+`E_l=10-0.001-|v|²=9.9874`, and duration `T=0.5`.
+
+The CURRENT proposed `allocation.rs` rule attributes *net kinetic change*
+according to projected channel acceleration `a_i dot A`, `A=a_g+a_l`.
+This is not generally the same as each channel's instantaneous kinetic
+work `v dot a_i`. Example:
+`a_g=(1,0)`, `a_l=(-2,2)`, `A=(-1,2)`, `v=(1,0)`.
+Then `a_g dot A=-1`, resulting in zero assigned gravitational share,
+although `v dot a_g=+1`.
+
+ALTERNATIVE, NOT APPROVED AS A REPLACEMENT: attribute energy to the
+independent signed kinetic-work terms:
+`dE_g/dt=-2*k_k*v dot a_g`,
+`dE_l/dt=-2*k_k*v dot a_l`.
+Together with `dE_k/dt=2*k_k*v dot (a_g+a_l)`, cosmic energy is conserved.
+For *constant* 3D field vectors, using the theory's
+`a_i=(E_i/E_c)*f_i`, this produces exact **energy-as-displacement**
+relations:
+`E_g(x)=E_g(0)*exp[-(2*k_k/E_c)*f_g dot (x-x0)]`,
+`E_l(x)=E_l(0)*exp[-(2*k_k/E_c)*f_l dot (x-x0)]`.
+They cover opposing and non-collinear constant vector fields as well as
+aligned ones. The expressions are positive in exact real arithmetic
+for finite displacement but floating-point exponentials may underflow;
+such cases must not be silently clamped.
+
+The independent research function `constant_field_work_path`
+in `work_path.rs` evaluates this alternate energy relation at a
+provided displacement, checking for invalid inputs, numerical
+underflow/overflow and impossible negative kinetic energy. **It does
+not replace** the canonical `propose_step`, `allocation.rs` or the
+reference integrator, and **does not solve x(t) or velocity direction**.
+The theory author must decide whether to change the channel-allocation
+law before this becomes a model integrator.
+
+The separate Python continuous-ODE tests find strong differences between
+the two allocation approaches. For example, in the levitation-dominant
+opposing-field case, the current rule leaves `E_g=0.001`, whereas
+the independent-work approach yields `E_g≈0.001579` at time 0.5.
+These are different **hypotheses**, not numerical errors between two
+solvers of the same equations. Numerical tests are exploratory and
+not evidence that either hypothesis reproduces nature.
+
+Rust compilation/tests have not yet been verified in this session.
 
 ## Explicitly outside this version
 
