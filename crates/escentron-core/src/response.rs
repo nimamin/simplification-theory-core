@@ -138,6 +138,33 @@ pub trait ResponseLaw {
     ) -> Vector3;
 }
 
+/// Confirmed Simplification Theory response: raw field vectors are the
+/// unscaled acceleration proposals. The coupling layer subsequently applies
+/// E_g/E_c to gravity and E_l/E_c to levitation, separately and once.
+///
+/// This is an explicit model assumption, not an experimentally validated
+/// relation. No additional field-to-acceleration coefficient is introduced.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DirectFieldResponse;
+
+impl ResponseLaw for DirectFieldResponse {
+    fn from_gravitational(
+        &self,
+        _target: &ParticleState,
+        field: crate::GravitationalField,
+    ) -> Vector3 {
+        field.0
+    }
+
+    fn from_levitational(
+        &self,
+        _target: &ParticleState,
+        field: crate::LevitationalField,
+    ) -> Vector3 {
+        field.0
+    }
+}
+
 /// Separate acceleration contributions, plus their vector sum.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AccelerationBreakdown {
