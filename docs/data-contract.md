@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.17)
+# Escentron core: data contract (draft v0.18)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -119,11 +119,10 @@ The linear inner profile is a modeling choice; no claim is made that it
 alone guarantees finite acceleration, total energy conservation, or
 numerical stability for arbitrarily large `dt`.
 
-**Target response is deferred.** The effects of both fields on an Escentron
-depend on additional target properties and rules to be specified later. Only
-the resulting acceleration contributions may be combined after those rules
-are established. No acceleration law, time integration, or particle stability
-is implied by field magnitudes alone.
+**The basic target response is now specified:** each separate field vector is
+scaled by its corresponding target energy fraction, as defined in v0.18 below.
+Only the resulting acceleration vectors are summed. This alone does not
+establish numerical stability or validate a particular energy-allocation rule.
 
 ## Target-response software boundary (interface only)
 
@@ -132,8 +131,9 @@ The `ResponseLaw` Rust trait declares two independent operations:
 - `from_gravitational(target, gravitational_field) -> acceleration_vector`
 - `from_levitational(target, levitational_field) -> acceleration_vector`
 
-No physical implementation of either operation exists yet. A consumer must
-supply the response laws explicitly. `acceleration_from_fields` validates
+The model now includes `DirectFieldResponse` as its explicitly confirmed
+raw field response. Callers can still supply alternative response laws for
+comparative software experiments. `acceleration_from_fields` validates
 the inputs, evaluates both operations, then adds the **acceleration vectors**.
 The software test double is purely an arithmetic/API test, not a physics model.
 
@@ -167,10 +167,10 @@ separately supplied levitational acceleration proposal. Zero pulse is likewise
 invalid and rejected. Each coefficient rejects a value above the
 cosmic energy budget rather than silently clamping it.
 
-This is **only the first factor** of the intended acceleration calculation.
+This is **the confirmed field-to-acceleration scaling** for the current model.
 It does not yet model whether the response increases or decreases gravitational
 energy, the associated inverse conversion, energy conservation during a step,
-or the limit on attainable velocity. The complete gravitational and levitational response laws remain to be specified. The generic
+or the limit on attainable velocity. The numerical energy-constrained step remains under investigation. The generic
 `ResponseLaw` trait remains separate; the new partial coefficient is not
 automatically incorporated into every custom implementation.
 
@@ -456,11 +456,42 @@ New checked callbacks in `reference_run_checked` and
 `convergence_test_checked` propagate errors in field/response calculation;
 they never turn a failed field evaluation into a fabricated acceleration.
 
-**Remaining gap before scientific training data:** define the actual
-physical field-to-acceleration conversion and ensure the energy attribution
-and accepted timestep rules are faithful to the latest mathematical spec.
+**Remaining gap before scientific training data:** the field-to-acceleration
+conversion was confirmed and implemented in v0.18, but the energy attribution
+and timestep update rules still need validation against the theory specification.
 The current pipeline must not be presented as a fully validated physics
 solver or used to train a model as if it were established ground truth.
+
+## Confirmed field-to-acceleration model (v0.18)
+
+The theory author confirmed the following model rule for the target Escentron:
+
+- `a_g = (E_g/E_c) * f_g` (the target's gravitational energy fraction
+  scales the gravitational field vector)
+- `a_l = (E_l/E_c) * f_l` (the target's levitational energy fraction
+  scales the levitational field vector)
+- `a_total = a_g + a_l` (only acceleration vectors are summed)
+
+The two heterogeneous field types remain separate. No additional
+field-to-acceleration coefficient is introduced. This is a **hypothesis
+of Simplification Theory**, not an experimentally confirmed law.
+
+`DirectFieldResponse` implements the now-confirmed *raw* proposals by
+returning the corresponding field vector; `coupled_acceleration` applies
+each energy fraction **once**, outside the raw response law.
+
+The entry points `model_acceleration`,
+`reference_model_with_fixed_sources`, and
+`convergence_model_with_fixed_sources` use this response directly,
+without requiring a mock or a user-supplied response law. The existing
+extension points and diagnostic trace remain available.
+
+**Limits:** the reference integrator's energy-allocation rule and
+semi-implicit position step are still experimental numerical choices.
+Other source particles are held fixed while the single target evolves.
+This makes the calculation ready for reproducible model-specific
+convergence experiments, not yet a fully validated multi-body model
+or a ground-truth data generator for scientific measurements.
 
 ## Auditable response trace (v0.17)
 
@@ -482,14 +513,9 @@ view of a candidate law, **not** new physics.
 
 ### Missing source specification
 
-The available Video 4 narrative explains field-induced pulling and pushing
-but does not give a numerical equation for how a gravitational or
-levitational field magnitude becomes a *raw acceleration proposal*.
-The project currently exposes a law interface instead of inventing such a
-conversion. Before generating training datasets that are claimed to
-represent the Simplification Theory dynamics, we need an explicit
-conversion rule (including any units or conversion factors), or the
-complete mathematical specification defining it.
+The Video 4 narrative alone did not give the numerical equation. The
+model author subsequently confirmed the direct-field response relation
+recorded in v0.18; this question is now resolved for the current model.
 
 The trace tests use software-only mock laws; passing these tests verifies
 field separation and energy-fraction wiring, not a scientifically grounded
