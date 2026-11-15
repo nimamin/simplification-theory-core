@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.16)
+# Escentron core: data contract (draft v0.17)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -461,6 +461,39 @@ physical field-to-acceleration conversion and ensure the energy attribution
 and accepted timestep rules are faithful to the latest mathematical spec.
 The current pipeline must not be presented as a fully validated physics
 solver or used to train a model as if it were established ground truth.
+
+## Auditable response trace (v0.17)
+
+The `coupling_trace(sources, target_index, current_target, constants, law)`
+function exposes all intermediate quantities required to test a future
+field-to-acceleration hypothesis without assuming its formula:
+
+- two separately superposed fields at the target's **current** position,
+  excluding the target's own source;
+- raw gravitational and levitational acceleration proposals returned by
+  the explicitly provided `ResponseLaw`;
+- the independent target energy fractions `E_g / E_c` and `E_l / E_c`;
+- separately scaled gravitational and levitational acceleration vectors,
+  followed by their vector sum.
+
+The `coupled_acceleration` function now shares this same calculation path
+and returns the applied acceleration breakdown. The trace is a diagnostic
+view of a candidate law, **not** new physics.
+
+### Missing source specification
+
+The available Video 4 narrative explains field-induced pulling and pushing
+but does not give a numerical equation for how a gravitational or
+levitational field magnitude becomes a *raw acceleration proposal*.
+The project currently exposes a law interface instead of inventing such a
+conversion. Before generating training datasets that are claimed to
+represent the Simplification Theory dynamics, we need an explicit
+conversion rule (including any units or conversion factors), or the
+complete mathematical specification defining it.
+
+The trace tests use software-only mock laws; passing these tests verifies
+field separation and energy-fraction wiring, not a scientifically grounded
+acceleration formula.
 
 ## Explicitly outside this version
 
