@@ -23,7 +23,7 @@ pub use budget::{transfer_energy, EnergyReservoir, TransferError};
 pub use constants::ModelConstants;
 pub use constraint::{limit_forward_acceleration, DirectionalError};
 pub use convergence::{convergence_test, convergence_test_checked, state_differences, ConvergenceError, ConvergenceResult, ConvergenceSettings, StateDifferences};
-pub use coupling::{coupled_acceleration, convergence_with_fixed_sources, reference_with_fixed_sources, CouplingError};
+pub use coupling::{coupling_trace, CouplingTrace, coupled_acceleration, convergence_with_fixed_sources, reference_with_fixed_sources, CouplingError};
 pub use energy::{energy_of, EnergyBreakdown};
 pub use field::{field_at, fields_at, fields_for_particle, fields_for_target_state, inner_radius, INNER_RADIUS_RATIO, FieldError, FieldTotals, GravitationalField, LevitationalField, SourceFields};
 pub use particle::ParticleState;
