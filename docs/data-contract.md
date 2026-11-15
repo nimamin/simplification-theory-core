@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.14)
+# Escentron core: data contract (draft v0.15)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -381,6 +381,48 @@ automatically wired into this reference runner: the missing complete
 response law must still be supplied by its callback. The built-in tests
 use synthetic acceleration callbacks to test the *software controller*,
 not to validate Simplification Theory.
+
+## Automatic timestep convergence comparison (experimental)
+
+`convergence_test(initial, constants, settings, acceleration_at)` runs
+**independent fixed-timestep trials** from the same initial Escentron state
+over the same duration. Resolution doubles from `N` to `2N` to `4N`,
+continuing up to a caller-specified maximum.
+
+After every pair of valid runs, compare ALL state outputs:
+- three position coordinates
+- three velocity coordinates
+- mass
+- pulse
+
+Each individual scalar must satisfy
+`abs(new - old) <= absolute_tolerance + relative_tolerance * max(abs(new), abs(old))`.
+The returned differences summarize the largest absolute vector-component
+errors for position/velocity and the separate mass/pulse errors.
+
+To avoid accepting one accidentally close pair, success requires **two
+consecutive refinement pairs** satisfying these criteria. The result reports
+the finer reference run, its step count, last differences and number of
+comparisons.
+
+Unlike `reference_run`'s retry mode, each individual convergence trial has
+a **fixed** timestep: the inner retry limit is set to its trial step count.
+If any trial encounters reservoir exhaustion, it is reported immediately
+with the resolution that failed. Such a failure is NOT labeled convergence,
+nor silently replaced with an unrelated trajectory. For a training-data
+workflow, choose a finer initial timestep and restart the entire convergence
+comparison.
+
+If the maximum number of steps is reached without two passing pairs,
+the routine returns `NotConverged`. This is not an automatic physical
+stability proof: agreement at several step sizes can still be misleading
+if the supplied acceleration rule is incomplete or a trajectory exhibits
+a shared numerical bias.
+
+The acceleration callback must be deterministic and stateless between
+reference trials. Meaningful absolute/relative tolerances depend on the
+project's eventual physical units. The tests use synthetic acceleration
+callbacks and do not validate an Escentron field-response law.
 
 ## Explicitly outside this version
 
