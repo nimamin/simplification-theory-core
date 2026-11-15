@@ -6,6 +6,7 @@
 //! This checks discretization agreement, not physical validity.
 use crate::{
     reference_run_checked, ModelConstants, ParticleState, ReferenceError, ReferenceResult,
+    StepError, TransferError,
     RetrySettings, Vector3,
 };
 
@@ -138,8 +139,29 @@ where
         ).map_err(|error| ConvergenceError::ReferenceFailed { steps, error })
     };
 
+    // Find the first *valid* fixed-step reference run. A depleted initial
+    // reservoir is not a convergence failure: restart the SAME initial state
+    // with twice as many steps, up to max_steps. Other errors are terminal.
     let mut steps = settings.initial_steps;
-    let mut previous = run(steps)?;
+    let mut previous = loop {
+        match run(steps) {
+            Ok(result) => break result,
+            Err(ConvergenceError::ReferenceFailed {
+                error: ReferenceError::RetryLimitReached {
+                    last_step_error: StepError::Transfer(
+                        TransferError::InsufficientSourceEnergy
+                        | TransferError::InsufficientKineticEnergy
+                        | TransferError::NonPositiveFieldEnergy
+                    ),
+                    ..
+                },
+                ..
+            }) if steps <= settings.max_steps / 2 => {
+                steps *= 2;
+            }
+            Err(error) => return Err(error),
+        }
+    };
     let mut previous_pair_passed = false;
     let mut comparisons = 0;
     let mut last_differences = StateDifferences {
@@ -242,9 +264,26 @@ mod tests {
     }
 
     #[test]
-    fn failed_trial_preserves_resolution_and_error() {
+    fn depleted_first_trial_is_restarted_at_finer_resolution() {
+        let options = ConvergenceSettings {
+            duration: 1.0, initial_steps: 1, max_steps: 4096,
+            absolute_tolerance: 1e-3, relative_tolerance: 1e-3,
+        };
+        let outcome = convergence_test(&initial(), &constants(), options, |s, _| {
+            (Vector3::new(s.mass, 0.0, 0.0), Vector3::ZERO)
+        });
+        // At N=1 the proposed step would consume more gravitational energy
+        // than available. The controller must not report failure at N=1.
+        assert!(!matches!(
+            outcome,
+            Err(ConvergenceError::ReferenceFailed { steps: 1, .. })
+        ));
+    }
+
+    #[test]
+    fn non_depletion_error_still_stops_at_first_resolution() {
         let result = convergence_test(&initial(), &constants(), settings(), |_, _| {
-            (Vector3::new(100.0, 0.0, 0.0), Vector3::ZERO)
+            (Vector3::new(f64::NAN, 0.0, 0.0), Vector3::ZERO)
         });
         assert!(matches!(
             result,
