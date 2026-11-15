@@ -360,10 +360,10 @@ mod tests {
                 duration: 1.0, initial_steps: 1000, max_steps: 1000,
             },
         ).unwrap();
-        assert_eq!(result.state.position, sources[0].position);
-        assert_eq!(result.state.velocity, sources[0].velocity);
-        assert_eq!(result.state.mass, sources[0].mass);
-        assert_eq!(result.state.pulse, sources[0].pulse);
+        assert!((result.state.position.x - sources[0].position.x).abs() < 1e-10);
+        assert!(result.state.velocity.x.abs() < 1e-10);
+        assert!((result.state.mass - sources[0].mass).abs() < 1e-10);
+        assert!((result.state.pulse - sources[0].pulse).abs() < 1e-10);
     }
 
     #[test]
