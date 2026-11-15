@@ -16,3 +16,11 @@ jobs:
         run: cargo test --workspace
       - name: Run clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Generate converged reference dataset
+        run: cargo run --release --example generate_reference_dataset > reference-dataset.csv
+      - name: Upload reference dataset
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-dataset
+          path: reference-dataset.csv
+          if-no-files-found: error
