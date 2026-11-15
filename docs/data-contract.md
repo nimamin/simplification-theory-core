@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.19)
+# Escentron core: data contract (draft v0.20)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -525,7 +525,7 @@ acceleration formula.
 
 The executable Rust example
 `crates/escentron-core/examples/generate_reference_dataset.rs` enumerates
-27 deterministic initial target states under one fixed external Escentron,
+36 deterministic initial target states under two fixed, non-collinear external Escentrons,
 using provisional numerical values for `G`, energy-conversion factors and
 `E_c`. It runs the confirmed field-to-acceleration rule through the
 single-target reference solver and the timestep convergence check.
@@ -562,6 +562,34 @@ experimental confirmation of Simplification Theory. The fixed-source
 environment and existing approximate energy allocation may bias training;
 the sampler also needs representative depletion-edge conditions before a
 learned large-timestep corrector can be assessed.
+
+## Independent numerical pilot and first learning baseline (v0.20)
+
+An independent Python reimplementation of the core arithmetic was
+evaluated on 36 initial conditions involving two non-collinear fixed
+field sources (so the two independent accelerations are not forced to
+be antiparallel). At exploratory absolute and relative tolerances of
+1e-4, all 36 cases passed two successive refinement comparisons,
+up to 8192 steps. Three initial conditions produced an invalid single
+coarse step despite a converged fine-step reference.
+
+This is **not** an execution of the Rust code, nor a Rust CI pass.
+The 1e-4 tolerance is deliberately exploratory, and these synthetic
+numbers do not imply calibrated physical units. The Python CSV produced
+in this separate experiment must not be represented as output of the
+Rust example until the Rust executable has actually run.
+
+A group-held-out, four-fold preliminary learning test trained a
+regularized linear regression and a small MLP network to predict the
+difference between coarse-step and fine-reference final velocities.
+Both **performed worse than leaving the coarse velocity unchanged** on
+unseen starting-position groups. These negative baseline results are
+evidence that 36 hand-picked samples are insufficient for a reliable
+learned correction, not evidence for or against the physics hypothesis.
+
+Before symbolic regression, expand the dataset across directions,
+velocities, field strengths, and near-depletion cases, and verify
+numerical convergence independently of the training split.
 
 ## Explicitly outside this version
 
