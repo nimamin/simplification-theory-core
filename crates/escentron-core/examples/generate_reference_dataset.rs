@@ -38,15 +38,17 @@ fn main() {
         duration: 1.0,
         initial_steps: 8,
         max_steps: 8192,
-        absolute_tolerance: 1e-7,
-        relative_tolerance: 1e-7,
+        absolute_tolerance: 1e-4,
+        relative_tolerance: 1e-4,
     };
 
-    // Complete 3D data values. Existing units are provisional.
+    // Include a near-source case with coarse-step energy overspend.
+    // All positions, units, constants and tolerances are provisional.
     let positions = [
         Vector3::new(0.0, 0.0, 0.0),
         Vector3::new(-4.0, 2.0, 0.0),
         Vector3::new(3.0, -3.0, 1.0),
+        Vector3::new(9.0, 0.0, 0.0),
     ];
     let velocities = [
         Vector3::new(0.1, 0.0, 0.0),
