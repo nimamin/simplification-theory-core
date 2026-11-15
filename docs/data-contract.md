@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.21)
+# Escentron core: data contract (draft v0.22)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -640,6 +640,44 @@ yet been confirmed by running Rust in this environment. Both
 analytical formulas return an explicit `PrecisionLimit` when floating-
 point arithmetic cannot represent the required strictly positive
 reservoir; they never silently clamp to a small invented energy.
+
+## Fast aligned two-field numerical experiment (v0.22)
+
+A separate Python prototype now solves the TWO co-directed, constant-field,
+positive-velocity, one-dimensional case using the previously derived exact
+energy-as-a-function-of-displacement laws:
+
+- `E_g(x)=E_g0*exp(-2*k_k*f_g*x/E_c)`
+- `E_l(x)=E_l0*exp(-2*k_k*f_l*x/E_c)`
+- `v(x)=sqrt(v0²+(E_g0+E_l0-E_g(x)-E_l(x))/k_k)`
+- Find displacement `x` by solving `t=integral(0..x) dx/v(x)`.
+
+The experiment evaluates the time integral by 16-node Gauss-Legendre
+quadrature after the *problem-specific* change of variable
+`x=s*sinh(u)^2`, where `s=v0²/(2*a0)` and
+`a0=(f_g*E_g0+f_l*E_l0)/E_c`. A bracketed scalar root finder then
+obtains the final displacement. Both field energies remain positive
+for representable exponentials; no depletion clamp is used.
+
+Measured on SIX exploratory cases, the transformed 16-node Python method
+was approximately 1.3x to 23.7x faster (median wall-clock) than SciPy
+`solve_ivp` with DOP853 and strict tolerances. Its maximum observed
+absolute position difference from the ODE was about 4.4e-7 (long
+interval), while maximum velocity difference was about 1.2e-8.
+The largest errors occur in sensitive regimes; higher quadrature order
+improves accuracy but increases work.
+
+These timings are Python-implementation-specific and do NOT predict
+Rust or GPU speedups. The quadrature is an **approximation**, and
+positive energy does not imply precise position. This method is only
+defined for co-directed positive constant fields and a forward-moving
+target; opposing, variable, non-collinear and multi-particle fields are
+NOT solved by this scheme. It has not been ported to or compiled in Rust.
+
+The independent experiment source and CSV report were produced as
+conversation artifacts; this document records the method and its
+limitations rather than treating experimental output as verified
+core behavior.
 
 ## Explicitly outside this version
 
