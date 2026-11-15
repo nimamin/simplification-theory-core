@@ -26,6 +26,14 @@ fn main() {
         mass: 4.0,
         pulse: 6.0,
     };
+    // A second non-collinear field source makes the two acceleration
+    // vectors potentially non-parallel, exercising 3D allocation.
+    let second_source = ParticleState {
+        position: Vector3::new(0.0, 12.0, -4.0),
+        velocity: Vector3::ZERO,
+        mass: 5.0,
+        pulse: 4.0,
+    };
     let settings = ConvergenceSettings {
         duration: 1.0,
         initial_steps: 8,
@@ -59,7 +67,7 @@ fn main() {
                 let target = ParticleState {
                     position, velocity, mass, pulse,
                 };
-                let sources = [target, source];
+                let sources = [target, source, second_source];
                 let reference = match convergence_model_with_fixed_sources(
                     &sources, 0, &constants, settings,
                 ) {
