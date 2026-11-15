@@ -1,4 +1,4 @@
-# Escentron core: data contract (draft v0.12)
+# Escentron core: data contract (draft v0.13)
 
 This document describes the **data representation and algebraic relations**, not a completed dynamics specification. The equations below describe hypotheses of Simplification Theory; they are not experimentally verified.
 
@@ -299,6 +299,46 @@ The numerical check currently uses a tolerance of
 `1e-10 * max(E_c, 1)` on energy sums. This is an implementation tolerance
 for exploratory floating-point tests, **not a physical law**. Tests
 and stability studies remain necessary before production simulation use.
+
+## Directional acceleration constraint (geometric helper only)
+
+The author specifies that a coarse discrete timestep may attempt to exhaust
+a particle's gravitational or levitational energy, even though the physical
+acceleration response should decrease toward depletion. The numerical
+correction must **not** scale all components of acceleration: only the
+component in the direction responsible for further depletion is restricted.
+Perpendicular and reverse components remain active.
+
+The `limit_forward_acceleration(a, d, limit)` helper decomposes an
+acceleration with respect to a supplied **depletion direction** `d`:
+
+- `t = (a · d)/(d · d)`
+- `a_corrected = a - max(t-limit, 0)*d`
+
+The helper requires no square roots, vector normalization, or trigonometric
+functions. With `limit=0`, the forward component is removed while the
+transverse and reverse components are preserved.
+
+**Important:** The helper does not determine which acceleration direction
+actually depletes a reservoir, the magnitude of its remaining permissible
+acceleration, or how two coupled energy channels behave at a depletion event.
+Those are physical rules still to be specified. It is NOT yet integrated into
+`propose_step`; that function remains a reject-on-overspend diagnostic.
+
+### Potential optimization of the 1,000 microcycle idea
+
+A reference implementation can recompute fields, response coefficients and
+reservoir energies in up to 1,000 small substeps to resolve exhaustion.
+A faster eventual solver could instead detect the **first reservoir-boundary
+event** and split the macro-step there, then continue with the constrained
+acceleration. Such an event-driven implementation must recalculate the
+fields and target response after the event and must be compared against a
+fine-substep reference. Merely clipping mass/pulse or uniformly multiplying
+the full acceleration is not equivalent.
+
+This event solver, its coupling to motion, and the choice of strictly
+positive numerical minimum for `m` and `p` remain unimplemented.
+No claim of unconditional stability for large `dt` is made.
 
 ## Explicitly outside this version
 
