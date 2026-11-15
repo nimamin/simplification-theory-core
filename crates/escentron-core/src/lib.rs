@@ -4,6 +4,7 @@
 //! It does not yet integrate equations of motion or claim physical validation.
 
 mod allocation;
+mod analytic;
 mod budget;
 mod constants;
 mod constraint;
@@ -19,6 +20,7 @@ mod validation;
 mod vector;
 
 pub use allocation::{acceleration_shares, allocate_kinetic_change, AccelerationShares, AllocationError};
+pub use analytic::{single_field_constant_exact, aligned_fields_energy_at_distance, AnalyticError, SingleFieldExact, AlignedFieldsExact};
 pub use budget::{transfer_energy, EnergyReservoir, TransferError};
 pub use constants::ModelConstants;
 pub use constraint::{limit_forward_acceleration, DirectionalError};
