@@ -186,6 +186,36 @@ pub fn fields_for_particle(
     Ok(result)
 }
 
+/// Query fields at a MOVING target's current position while excluding
+/// its own source by stable index. Other source particles are treated as
+/// fixed during this one-target reference integration.
+pub fn fields_for_target_state(
+    sources: &[ParticleState],
+    target_index: usize,
+    target: &ParticleState,
+    constants: &ModelConstants,
+) -> Result<FieldTotals, FieldError> {
+    if target_index >= sources.len() {
+        return Err(FieldError::InvalidTargetIndex);
+    }
+    target.validate()?;
+    constants.validate()?;
+    let mut result = FieldTotals::ZERO;
+    for (index, source) in sources.iter().enumerate() {
+        if index == target_index {
+            continue;
+        }
+        let f = field_at(source, target.position, constants)?;
+        result.gravitational = GravitationalField(sum_vectors(
+            result.gravitational.0, f.gravitational.0,
+        )?);
+        result.levitational = LevitationalField(sum_vectors(
+            result.levitational.0, f.levitational.0,
+        )?);
+    }
+    Ok(result)
+}
+
 fn sum_vectors(a: Vector3, b: Vector3) -> Result<Vector3, FieldError> {
     let sum = Vector3::new(a.x + b.x, a.y + b.y, a.z + b.z);
     if !sum.is_finite() { return Err(FieldError::NonFiniteResult); }
@@ -369,6 +399,17 @@ mod tests {
             fields_for_particle(&[source_at(0.0)], 1, &constants()),
             Err(FieldError::InvalidTargetIndex)
         );
+    }
+
+    #[test]
+    fn moving_target_excludes_own_source_even_after_displacement() {
+        let sources = [source_at(0.0), source_at(5.0)];
+        let mut moved = sources[0];
+        moved.position = Vector3::new(1.0, 0.0, 0.0);
+        let actual = fields_for_target_state(&sources, 0, &moved, &constants()).unwrap();
+        let expected = field_at(&sources[1], moved.position, &constants()).unwrap();
+        assert_eq!(actual.gravitational, expected.gravitational);
+        assert_eq!(actual.levitational, expected.levitational);
     }
 
 }
