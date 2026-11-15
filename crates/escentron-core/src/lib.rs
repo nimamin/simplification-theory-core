@@ -18,6 +18,7 @@ mod response;
 mod step;
 mod validation;
 mod vector;
+mod work_path;
 
 pub use allocation::{acceleration_shares, allocate_kinetic_change, AccelerationShares, AllocationError};
 pub use analytic::{single_field_constant_exact, aligned_fields_energy_at_distance, AnalyticError, SingleFieldExact, AlignedFieldsExact};
@@ -34,6 +35,7 @@ pub use response::{acceleration_from_fields, gravitational_response_coefficient,
 pub use step::{propose_step, StepError, StepProposal};
 pub use validation::ValidationError;
 pub use vector::Vector3;
+pub use work_path::{constant_field_work_path, WorkPathEnergies, WorkPathError};
 
 /// Version of this Rust implementation.
 pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
