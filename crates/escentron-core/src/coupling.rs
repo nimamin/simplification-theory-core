@@ -8,7 +8,7 @@ use crate::{
     reference_run_checked, gravitational_response_coefficient, levitational_response_coefficient,
     AccelerationBreakdown, ConvergenceError, ConvergenceResult, ConvergenceSettings,
     ModelConstants, ParticleState, ReferenceError, ReferenceResult, ResponseError, ResponseLaw,
-    RetrySettings, Vector3, FieldTotals,
+    RetrySettings, Vector3, FieldTotals, DirectFieldResponse,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -152,6 +152,44 @@ pub fn convergence_with_fixed_sources(
     })
 }
 
+/// The confirmed model acceleration for the target under other sources:
+/// a_g = (E_g/E_c) * f_g; a_l = (E_l/E_c) * f_l.
+/// The two acceleration vectors, unlike their source field types, can sum.
+pub fn model_acceleration(
+    sources: &[ParticleState],
+    target_index: usize,
+    current_target: &ParticleState,
+    constants: &ModelConstants,
+) -> Result<AccelerationBreakdown, CouplingError> {
+    coupled_acceleration(
+        sources, target_index, current_target, constants, &DirectFieldResponse,
+    )
+}
+
+/// Reference trajectory using the confirmed field-to-acceleration relation.
+pub fn reference_model_with_fixed_sources(
+    sources: &[ParticleState],
+    target_index: usize,
+    constants: &ModelConstants,
+    settings: RetrySettings,
+) -> Result<ReferenceResult, ReferenceError> {
+    reference_with_fixed_sources(
+        sources, target_index, constants, settings, &DirectFieldResponse,
+    )
+}
+
+/// Timestep refinement with the confirmed field-to-acceleration relation.
+pub fn convergence_model_with_fixed_sources(
+    sources: &[ParticleState],
+    target_index: usize,
+    constants: &ModelConstants,
+    settings: ConvergenceSettings,
+) -> Result<ConvergenceResult, ConvergenceError> {
+    convergence_with_fixed_sources(
+        sources, target_index, constants, settings, &DirectFieldResponse,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,6 +289,44 @@ mod tests {
         moved.position = Vector3::new(1.0, 0.0, 0.0);
         let second = coupling_trace(&s, 0, &moved, &constants(), &IdentityMock).unwrap();
         assert_ne!(first.fields.gravitational.0.x, second.fields.gravitational.0.x);
+    }
+
+    #[test]
+    fn confirmed_model_response_matches_energy_scaled_fields() {
+        let s = sources();
+        let a = model_acceleration(&s, 0, &s[0], &constants()).unwrap();
+        assert!((a.gravitational.x - 0.012).abs() < 1e-12);
+        assert!((a.levitational.x + 0.0018).abs() < 1e-12);
+        assert!((a.total.x - 0.0102).abs() < 1e-12);
+    }
+
+    #[test]
+    fn model_reference_runs_with_nonzero_field_and_preserves_positive_energy() {
+        let s = sources();
+        let result = reference_model_with_fixed_sources(
+            &s, 0, &constants(),
+            RetrySettings { duration: 1.0, initial_steps: 16, max_steps: 4096 },
+        ).unwrap();
+        assert!(result.state.velocity.x > s[0].velocity.x);
+        assert!(result.state.mass > 0.0);
+        assert!(result.state.pulse > 0.0);
+        let total = crate::energy_of(&result.state, &constants()).unwrap().total();
+        assert!((total - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn model_convergence_runs_with_actual_response_law() {
+        let s = sources();
+        let result = convergence_model_with_fixed_sources(
+            &s, 0, &constants(),
+            ConvergenceSettings {
+                duration: 1.0, initial_steps: 8, max_steps: 4096,
+                absolute_tolerance: 1e-5, relative_tolerance: 1e-5,
+            },
+        ).unwrap();
+        assert!(result.reference.accepted_steps >= 32);
+        assert!(result.reference.state.mass > 0.0);
+        assert!(result.reference.state.pulse > 0.0);
     }
 
 }
