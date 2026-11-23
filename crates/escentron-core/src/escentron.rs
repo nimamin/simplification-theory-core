@@ -76,3 +76,56 @@ impl WorkLaw {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum WorkStepError {
+    Field(FieldError),
+    InvalidInput(crate::ValidationError),
+    BelowEnergyFloor,
+    CosmicEnergyMismatch,
+}
+
+impl From<FieldError> for WorkStepError {
+    fn from(error: FieldError) -> Self { Self::Field(error) }
+}
+
+impl From<crate::ValidationError> for WorkStepError {
+    fn from(error: crate::ValidationError) -> Self { Self::InvalidInput(error) }
+}
+
+fn validate_step(state: &ParticleState, model: &ModelConstants, law: WorkLaw, dt: f64)
+    -> Result<(), WorkStepError>
+{
+    use crate::validation::finite_positive;
+    finite_positive(dt, "dt")?;
+    finite_positive(model.k_k, "k_k")?;
+    finite_positive(model.k_g, "k_g")?;
+    finite_positive(model.k_l, "k_l")?;
+    let energy = crate::energy_of(state, model)?;
+    if energy.gravitational < law.minimum_energy || energy.levitational < law.minimum_energy {
+        return Err(WorkStepError::BelowEnergyFloor);
+    }
+    if (energy.total() / model.cosmic_energy - 1.0).abs() > 1e-10 {
+        return Err(WorkStepError::CosmicEnergyMismatch);
+    }
+    Ok(())
+}
+
+impl ParticleState {
+    fn drift(&self, velocity: Vector3, dt: f64) -> Result<Self, WorkStepError> {
+        let position = self.position + velocity * dt;
+        let moved = Self { position, velocity, ..*self };
+        moved.validate()?;
+        Ok(moved)
+    }
+}
+
+/// One discrete work update per particle. All fields use the same initial snapshot.
+pub fn advance_escentrons(particles: &[ParticleState], model: &ModelConstants, law: WorkLaw, dt: f64)
+    -> Result<Vec<ParticleState>, WorkStepError>
+{
+    particles.iter().enumerate().map(|(index, particle)| {
+        let fields = fields_for_particle(particles, index, model)?;
+        particle.advance_in(fields, model, law, dt)
+    }).collect()
+}

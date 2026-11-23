@@ -51,3 +51,5 @@ mod tests {
 
 mod escentron;
 pub use escentron::{Escentron, Moving, FieldSource, WorkLaw, ParticleWork, GravityWork, LevitationWork, KineticWork, work_at_particle};
+
+pub use escentron::{advance_escentrons, WorkStepError};

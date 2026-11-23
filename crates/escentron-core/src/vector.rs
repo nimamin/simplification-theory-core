@@ -57,3 +57,10 @@ impl std::ops::Mul<f64> for Vector3 {
 mod tests {
     include!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/unit/vector.rs"));
 }
+
+impl std::ops::Div<f64> for Vector3 {
+    type Output = Self;
+    fn div(self, scalar: f64) -> Self {
+        Self::new(self.x / scalar, self.y / scalar, self.z / scalar)
+    }
+}
