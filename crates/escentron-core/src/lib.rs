@@ -48,3 +48,6 @@ pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 mod tests {
     include!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/unit/lib.rs"));
 }
+
+mod escentron;
+pub use escentron::{Escentron, Moving, FieldSource, WorkLaw, ParticleWork, GravityWork, LevitationWork, KineticWork, work_at_particle};
