@@ -119,16 +119,12 @@ where
                 Err(err) => { failure = Some(err); break; }
             };
 
-            let next_position = Vector3::new(
-                state.position.x + proposal.proposed_velocity.x * dt,
-                state.position.y + proposal.proposed_velocity.y * dt,
-                state.position.z + proposal.proposed_velocity.z * dt,
-            );
+            let next_position = crate::equations::advance(state.position, proposal.proposed_velocity, dt);
             let next_state = ParticleState {
                 position: next_position,
                 velocity: proposal.proposed_velocity,
-                mass: proposal.proposed_energies.gravitational / constants.k_g,
-                pulse: proposal.proposed_energies.levitational / constants.k_l,
+                mass: crate::equations::from_energy(proposal.proposed_energies.gravitational, constants.k_g),
+                pulse: crate::equations::from_energy(proposal.proposed_energies.levitational, constants.k_l),
             };
             if !next_position.is_finite() {
                 return Err(ReferenceError::NonFiniteState);

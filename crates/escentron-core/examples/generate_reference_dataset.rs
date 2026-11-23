@@ -94,10 +94,10 @@ fn main() {
                     acceleration.levitational,
                     settings.duration,
                 ).is_ok();
-                let initial_energy = energy_of(&target, &constants())
+                let initial_energy = energy_of(&target, &constants)
                     .expect("valid target energy");
                 let final_state = reference.reference.state;
-                let final_energy = energy_of(&final_state, &constants())
+                let final_energy = energy_of(&final_state, &constants)
                     .expect("valid reference energy");
                 let d = reference.final_differences;
                 println!(
