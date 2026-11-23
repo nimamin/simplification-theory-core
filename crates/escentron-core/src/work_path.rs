@@ -31,6 +31,8 @@ pub struct WorkPathEnergies {
 /// Field vectors are fixed throughout the displacement. Does NOT solve
 /// position or velocity direction as a function of time. Does NOT alter the
 /// canonical energy allocation rule. Never inserts artificial minimum energy.
+// Keep the existing reference-solver API compatible with external experiments.
+#[allow(clippy::too_many_arguments)]
 pub fn constant_field_work_path(
     initial_gravitational: f64,
     initial_levitational: f64,

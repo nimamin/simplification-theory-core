@@ -1,5 +1,4 @@
 use crate::*;
-use super::*;
 use crate::{GravitationalField, LevitationalField};
 
 // Software-only mock law: returns vectors unchanged. It is NOT

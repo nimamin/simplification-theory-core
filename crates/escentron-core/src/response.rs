@@ -116,6 +116,8 @@ pub fn scale_levitational_acceleration(
 /// Placeholder contract for target-specific physical induction rules.
 /// Implementations will be supplied only after their equations are agreed.
 /// Receiving two distinct field types prevents implicit field addition.
+// Preserve the public response-law method names used by existing callers.
+#[allow(clippy::wrong_self_convention)]
 pub trait ResponseLaw {
     fn from_gravitational(
         &self,
