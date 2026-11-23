@@ -31,6 +31,8 @@ pub struct WorkPathEnergies {
 /// Field vectors are fixed throughout the displacement. Does NOT solve
 /// position or velocity direction as a function of time. Does NOT alter the
 /// canonical energy allocation rule. Never inserts artificial minimum energy.
+// Keep the existing reference-solver API compatible with external experiments.
+#[allow(clippy::too_many_arguments)]
 pub fn constant_field_work_path(
     initial_gravitational: f64,
     initial_levitational: f64,
@@ -62,7 +64,7 @@ pub fn constant_field_work_path(
         1e-10 * cosmic_energy.max(1.0) {
         return Err(WorkPathError::InvalidInput);
     }
-    let dot = |a: Vector3, b: Vector3| a.x * b.x + a.y * b.y + a.z * b.z;
+    use crate::equations::dot;
     let coefficient = -2.0 * kinetic_coefficient / cosmic_energy;
     let eg = initial_gravitational
         * (coefficient * dot(gravitational_field, displacement)).exp();
@@ -85,46 +87,5 @@ pub fn constant_field_work_path(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn noncollinear_field_energies_follow_independent_dot_products() {
-        let s = constant_field_work_path(
-            1.0, 8.0, 1.0,
-            Vector3::new(2.0, 0.0, 0.0),
-            Vector3::new(0.0, 3.0, 0.0),
-            Vector3::new(1.0, 1.0, 0.0),
-            1.0, 10.0,
-        ).unwrap();
-        assert!((s.gravitational - (-0.4_f64).exp()).abs() < 1e-12);
-        assert!((s.levitational - 8.0 * (-0.6_f64).exp()).abs() < 1e-12);
-        assert!((s.gravitational + s.levitational + s.kinetic - 10.0).abs() < 1e-12);
-    }
-
-    #[test]
-    fn zero_displacement_preserves_all_energies() {
-        let s = constant_field_work_path(
-            1.0, 8.0, 1.0,
-            Vector3::new(3.0, 0.0, 0.0),
-            Vector3::new(-2.0, 0.0, 1.0),
-            Vector3::ZERO, 1.0, 10.0,
-        ).unwrap();
-        assert_eq!(s.gravitational, 1.0);
-        assert_eq!(s.levitational, 8.0);
-        assert_eq!(s.kinetic, 1.0);
-    }
-
-    #[test]
-    fn inaccessible_reverse_displacement_is_rejected() {
-        assert_eq!(
-            constant_field_work_path(
-                1.0, 8.0, 1.0,
-                Vector3::new(2.0, 0.0, 0.0),
-                Vector3::ZERO,
-                Vector3::new(-5.0, 0.0, 0.0),
-                1.0, 10.0,
-            ),
-            Err(WorkPathError::UnreachableKineticEnergy)
-        );
-    }
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/unit/work_path.rs"));
 }
