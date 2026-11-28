@@ -153,3 +153,33 @@ fn v2_007_time_refinement() {
     assert!((d.velocity.x - b.velocity.x).abs() < (b.velocity.x - a.velocity.x).abs());
     assert!((d.position.x - b.position.x).abs() < (b.position.x - a.position.x).abs());
 }
+
+#[test]
+fn v2_008_opposing_work_cancels_before_allocation() {
+    let c = constants();
+    let initial = particle(0.0);
+    let next = advance(&initial, field(6.0, -3.0), &c, 0.001).unwrap();
+    let e = energies(&next, &c).unwrap();
+    assert_eq!(next.pulse, initial.pulse);
+    assert!((e.kinetic - 3.0 * c.k_w / 2.0_f64.sqrt() * 0.001).abs() < 1e-12);
+    assert!((1.0 - e.gravitational - e.kinetic).abs() < 1e-12);
+    check_energy(&next, &c, 2.0);
+    let back = advance(&next, field(-6.0, 3.0), &c, 0.0001).unwrap();
+    assert!(back.mass > next.mass);
+    assert_eq!(back.pulse, next.pulse);
+    check_energy(&back, &c, 2.0);
+}
+
+#[test]
+fn v2_009_aligned_work_shares_and_reverse_dominance() {
+    let c = constants();
+    let initial = particle(0.0);
+    let next = advance(&initial, field(6.0, 3.0), &c, 0.001).unwrap();
+    let e = energies(&next, &c).unwrap();
+    assert!((1.0 - e.gravitational - e.kinetic * 2.0 / 3.0).abs() < 1e-12);
+    assert!((1.0 - e.levitational - e.kinetic / 3.0).abs() < 1e-12);
+    let next = advance(&initial, field(3.0, -6.0), &c, 0.001).unwrap();
+    assert_eq!(next.mass, initial.mass);
+    assert!(next.pulse < initial.pulse && next.velocity.x < 0.0);
+    check_energy(&next, &c, 2.0);
+}

@@ -11,7 +11,7 @@ impl WorkVectors {
     pub(super) fn from_fields(fields: FieldTotals, e: EnergyBreakdown, f0: f64, k_w: f64, dt: f64) -> Self {
         let cosmic_energy = e.total();
         let response = |field: Vector3, energy: f64| {
-            scale(scale(field, 1.0 / f0), k_w * (energy / cosmic_energy) * dt)
+            scale(scale(field, 1.0 / f0), k_w * (energy / cosmic_energy).sqrt() * dt)
         };
         Self {
             gravitational: response(fields.gravitational.0, e.gravitational),
@@ -32,11 +32,11 @@ impl WorkVectors {
 
     fn exchange(self, delta: f64) -> (f64, f64) {
         let w = self.total();
-        let length = norm(w);
-        if length == 0.0 { return (0.0, 0.0); }
-        let unit = scale(w, 1.0 / length);
-        (dot(self.gravitational, unit) * (delta / length),
-         dot(self.levitational, unit) * (delta / length))
+        let squared = dot(w, w);
+        if squared == 0.0 { return (0.0, 0.0); }
+        let alpha_g = (dot(self.gravitational, w) / squared).clamp(0.0, 1.0);
+        let qg = alpha_g * delta;
+        (qg, delta - qg)
     }
 
     fn transfers(self, j: Vector3) -> (f64, f64) {
@@ -50,7 +50,7 @@ impl WorkVectors {
     }
 
     /// Limit actual energy delivered, not a reservoir's ability to receive.
-    /// A common scale preserves the raw resultant direction and signed shares.
+    /// A common scale preserves the raw resultant direction and cancellation-aware shares.
     pub(super) fn limited(self, j: Vector3, e: EnergyBreakdown, floor: f64) -> (Self, f64, f64) {
         let fits = |(qg, ql): (f64, f64)| {
             qg <= (e.gravitational - floor).max(0.0)

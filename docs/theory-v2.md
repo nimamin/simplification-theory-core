@@ -1,41 +1,48 @@
-# Simplification Theory — Version 2.0
+# Simplification Theory — The Three Escentron Postulates
 
-28 November 2026. Based on The Three Escentron Postulates of the same date.
-Experimental reference implementation, not a validated physical theory.
+Version 2.0 · revision alpha.6 · 28 November 2026
 
 ## I. Individual cosmic energy
 
-E_c = E_g + E_l + E_k is constant for each particle.
-
-E_g = k_g m^2; E_l = k_l p^2; E_k = k_k |v|^2.
-
-Gravitational mass m and pulse p vary. Inertial mass mu is fixed and k_k = mu/2.
+Each Escentron conserves its own cosmic energy:
+E_c = E_g + E_l + E_k.
+E_g = k_g m²; E_l = k_l p²; E_k = k_k |v|².
+Gravitational mass m and pulse p vary. Inertial mass mu is fixed, k_k = mu/2.
+m_max = sqrt(E_c/k_g), p_max = sqrt(E_c/k_l) are theoretical single-reservoir limits.
 
 ## II. Independent source fields
 
-For displacement from source to receiver r = distance * unit:
+For unit vector r_hat from source to receiver at distance r > 0:
+F_g = -C_g m_source/r² * r_hat; F_l = +C_l p_source/r³ * r_hat.
+Sum each field kind independently. Coincidence is undefined.
 
-F_g = -C_g m_source / distance^2 * unit.
-F_l = +C_l p_source / distance^3 * unit.
+## III. Field-induced work and energy conversion
 
-Sum each field kind independently. Coincidence is undefined in this specification; the v2 engine reports an error instead of introducing a core or collision law.
+Raw work rates:
+U_g = k_w (m/m_max) (F_g/F_0).
+U_l = k_w (p/p_max) (F_l/F_0).
+Here m/m_max = sqrt(E_g/E_c) and p/p_max = sqrt(E_l/E_c).
+The ratios are linear in the normalized coordinates, not in normalized energies.
+F_0 and k_w are positive reference constants; k_w has energy/time units in the normalized field convention.
 
-## III. Work and energy exchange
+Applied step vectors: W_i = lambda U_i dt, with common lambda in [0,1].
+W_k = W_g + W_l.
+J = k_k |v| v; J' = J + W_k; E_k' = |J'|.
+v' = J'/sqrt(k_k |J'|) when J' != 0, otherwise v'=0.
+delta E_k = E_k' - E_k.
 
-J = k_k |v| v, |J| = E_k.
-Raw work: U_i = k_w (E_i/E_c) (F_i/F_0) dt, where k_w and F_0 are positive constants. The field induces a directional response scaled by the remaining fraction of the reservoir.
-Use the entire remaining reservoir energy E_i, including the positive minimum.
-Applied work W_i is U_i unless the resulting signed transfer would leave a reservoir below E_min.
-W = W_g + W_l; J' = J + W; delta E_k = |J'| - |J|.
-q_i = (W_i dot W)/|W|^2 * delta E_k; E_i' = E_i - q_i.
-If W = 0, q_g = q_l = 0.
-Recover m, p and v from their updated energies. No interparticle energy transfer.
+For W_k != 0, alpha_g = clamp((W_g dot W_k)/(W_k dot W_k), 0, 1);
+alpha_l = 1 - alpha_g.
+Only uncancelled work participates in energy conversion. For example +6 and -3 yield a resultant +3 and shares 1 and 0.
+q_g = alpha_g delta E_k; q_l = delta E_k - q_g.
+E_g' = E_g - q_g; E_l' = E_l - q_l.
+For exact cancellation, both transfers are zero. No separate braking sign.
+Recover m' = sqrt(E_g'/k_g), p' = sqrt(E_l'/k_l).
+Total energy is conserved algebraically, up to numerical roundoff.
 
-## Numerical conventions, not new postulates
+### Numerical floor and implementation
 
-The revised work equation uses normalized dt and explicit k_w. E_c is evaluated as the conserved total of the input particle. For the existing E_c=2 fixtures, k_w=2 preserves the alpha.2 law numerically; different E_c values now have explicitly normalized responses. Compute the signed transfers using the raw vectors. If either transfer would spend more than E_i - E_min, apply a common scalar lambda in [0,1] to both raw vectors and recompute the transfers, using a bounded bisection search for a feasible step. This numerical choice preserves the direction and signed shares of the raw resultant; it is not a new physical postulate. A negative transfer replenishes the reservoir and is not constrained by its minimum. Position uses trapezoidal drift; all particles see the same old snapshot. Constants are explicit and units uncalibrated. No artificial rebound or velocity reset is permitted.
-
-An exhausted reservoir retains nonzero raw work because E_min > 0; a reversed field may replenish it. The time symmetry requirement is retained and must be tested, not assumed.
+Use lambda=1 unless a proposed transfer violates E_i' >= E_min > 0. Reduce the common scale by bounded bisection when necessary; preserve the resultant direction and shares. Negative transfers replenish a reservoir. Position uses trapezoidal drift and system steps use a common old snapshot. The reference implementation currently evaluates normalized coordinate ratios as sqrt(E_i/E_c), algebraically equivalent to m/m_max and p/p_max. No artificial rebound or velocity reset. Exact inversion is retained; no direct-coordinate approximation is used in the reference engine. Constants and units remain uncalibrated.
 
 ## Acceptance tests
 
@@ -49,27 +56,13 @@ Run cargo test -p escentron-core --test theory_v2. All tests are active; failure
 - V2-006: translation and rotation invariance.
 - V2-007: refinement at fixed elapsed time.
 
-Tolerances, normalized coefficients and horizons are proposed numerical fixtures, not measured physical constants. The legacy experimental APIs remain available for comparison. The new reference API is escentron_core::theory_v2; it does not yet replace legacy callers. Package version 2.0.0-alpha.3 denotes an unvalidated implementation of theory 2.0.
+Tolerances, normalized coefficients and horizons are proposed numerical fixtures, not measured physical constants. The legacy experimental APIs remain available for comparison. The new reference API is escentron_core::theory_v2; it does not yet replace legacy callers. Package version 2.0.0-alpha.6 is experimental.0.
 
-## Normalized mass and pulse; differential representation
 
-Define m_max = sqrt(E_c/k_g) and p_max = sqrt(E_c/k_l), theoretical limits if all cosmic energy were assigned to one reservoir (actual floors restrict the reachable maximum).
-E_g/E_c = (m/m_max)^2 and E_l/E_c = (p/p_max)^2. A linear normalized mass/pulse response would be a different law, not a constant rescaling of the energy response.
+- V2-008: opposing work cancels before allocation; braking restores only the active reservoir.
+- V2-009: aligned work shares and reverse dominance.
 
-For signed energy transfers q_i per step, the continuous identities are dm/dt = -qdot_g/(2 k_g m) and dp/dt = -qdot_l/(2 k_l p). Integrating these rates is a proposed alternative; a first-order discrete update does not conserve the quadratic energy exactly. The reference engine retains exact energy inversion pending agreement on the differential dynamics and conservation method. Work vectors in the current engine have energy units, not mass or acceleration units.
+## Historical experiments
 
-## Alpha.2 baseline (user-reported Rust test run)
-
-All 8 tests passed. First rebound (dt, time, minimum gap):
-
-- 0.001, 15.467, 1.3206003266373654
-- 0.0005, 15.4665, 1.3208853496283364
-- 0.00025, 15.46625, 1.3210291835538037
-
-## Alpha.4 — direct-coordinate observation (experimental)
-
-The alpha.3 reference engine is retained. The separate direct experiment integrates m, p and v without energy inversion, conservation corrections, or reservoir floors. The initial cosmic energy defines fixed m_max and p_max, calculated once. The provisional acceleration law is a_g = k_w (m/m_max) F_g/F_0 and a_l = k_w (p/p_max) F_l/F_0. The coefficient is interpreted in normalized acceleration units. Velocity advances by (a_g+a_l) dt. For this experiment only, signed speed change is allocated by projection onto the resultant acceleration and subtracted directly from mass and pulse in normalized coordinate units (unit conversion factors assumed one). This allocation is a hypothesis, not a derived conservation law. The measured energy is k_g m^2 + k_l p^2 + k_k |v|^2; no feedback uses it. No minimum floor is applied in this observation. Run cargo test -p escentron-core --test direct_observation -- --nocapture. The original eight acceptance tests still exercise the reference engine, not the experimental direct model. Package version 2.0.0-alpha.4.
-
-## Alpha.5 — direct work rates and reservoir floor
-
-Supersedes the alpha.4 direct experiment's speed-difference allocation. Raw work vectors W_g = k_w (m/m_max) F_g/F_0 and W_l = k_w (p/p_max) F_l/F_0 are rates; W_k = W_g + W_l. Integrate velocity with W_k dt. For scalar mass and pulse, the provisional signed convention is projection onto the unit resultant, with a negative sign during acceleration (including rest) and a positive sign when v dot W_k < 0. For zero resultant both scalar rates are zero. Integrate each scalar rate with dt exactly once. No speed difference is calculated. The common step limiter prevents mass or pulse from crossing sqrt(E_min/k_i), equivalent to the energy floor for positive coordinates. These limits are computed once at initialization; the same limiter scales all three rates. Negative coordinate rates deplete a reservoir; positive rates can replenish it at the floor. Energy is observed only, not conserved by feedback. The scalar projection/sign convention and common limiter are provisional implementation choices, not independently approved new postulates. Package version 2.0.0-alpha.5.
+Alpha.2: user-reported 8/8 tests passed under the earlier signed allocation law.
+Alpha.4–5: direct-coordinate integration is retained in the separate experimental module, not the current specification. Its observed energy was not constant. Alpha.6 restores the energy-vector representation and uses cancellation-aware shares. The prior baseline does not establish that alpha.6 passes.

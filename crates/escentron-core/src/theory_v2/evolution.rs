@@ -74,8 +74,8 @@ pub fn advance(state: &ParticleState, fields: FieldTotals, c: &V2Constants, dt: 
     let next = ParticleState {
         position: add(state.position, scale(add(state.velocity, velocity), dt * 0.5)),
         velocity,
-        mass: (eg.max(c.energy_floor) / c.k_g).sqrt(),
-        pulse: (el.max(c.energy_floor) / c.k_l).sqrt(),
+        mass: if qg == 0.0 { state.mass } else { (eg.max(c.energy_floor) / c.k_g).sqrt() },
+        pulse: if ql == 0.0 { state.pulse } else { (el.max(c.energy_floor) / c.k_l).sqrt() },
     };
     let check = energies(&next, c)?;
     if (check.total() - e.total()).abs() > tolerance { return Err(V2Error::EnergyMismatch); }
