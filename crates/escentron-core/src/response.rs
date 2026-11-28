@@ -125,13 +125,13 @@ pub fn scale_levitational_acceleration(
 /// Implementations will be supplied only after their equations are agreed.
 /// Receiving two distinct field types prevents implicit field addition.
 pub trait ResponseLaw {
-    fn from_gravitational(
+    fn respond_to_gravitational(
         &self,
         target: &ParticleState,
         field: crate::GravitationalField,
     ) -> Vector3;
 
-    fn from_levitational(
+    fn respond_to_levitational(
         &self,
         target: &ParticleState,
         field: crate::LevitationalField,
@@ -148,7 +148,7 @@ pub trait ResponseLaw {
 pub struct DirectFieldResponse;
 
 impl ResponseLaw for DirectFieldResponse {
-    fn from_gravitational(
+    fn respond_to_gravitational(
         &self,
         _target: &ParticleState,
         field: crate::GravitationalField,
@@ -156,7 +156,7 @@ impl ResponseLaw for DirectFieldResponse {
         field.0
     }
 
-    fn from_levitational(
+    fn respond_to_levitational(
         &self,
         _target: &ParticleState,
         field: crate::LevitationalField,
@@ -189,8 +189,8 @@ pub fn acceleration_from_fields(
     if !fields.levitational.0.is_finite() {
         return Err(ResponseError::InvalidField("levitational"));
     }
-    let gravitational = law.from_gravitational(target, fields.gravitational);
-    let levitational = law.from_levitational(target, fields.levitational);
+    let gravitational = law.respond_to_gravitational(target, fields.gravitational);
+    let levitational = law.respond_to_levitational(target, fields.levitational);
     if !gravitational.is_finite() {
         return Err(ResponseError::InvalidAcceleration("gravitational"));
     }
@@ -214,10 +214,10 @@ mod tests {
     // A test double for checking software composition; NOT a physical law.
     struct TestResponse;
     impl ResponseLaw for TestResponse {
-        fn from_gravitational(
+        fn respond_to_gravitational(
             &self, _target: &ParticleState, field: GravitationalField,
         ) -> Vector3 { field.0 }
-        fn from_levitational(
+        fn respond_to_levitational(
             &self, _target: &ParticleState, field: LevitationalField,
         ) -> Vector3 { field.0 }
     }

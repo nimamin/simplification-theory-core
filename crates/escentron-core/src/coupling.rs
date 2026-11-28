@@ -199,13 +199,13 @@ mod tests {
     // the missing physics mapping from field strength to acceleration.
     struct IdentityMock;
     impl ResponseLaw for IdentityMock {
-        fn from_gravitational(&self, _: &ParticleState, f: GravitationalField) -> Vector3 { f.0 }
-        fn from_levitational(&self, _: &ParticleState, f: LevitationalField) -> Vector3 { f.0 }
+        fn respond_to_gravitational(&self, _: &ParticleState, f: GravitationalField) -> Vector3 { f.0 }
+        fn respond_to_levitational(&self, _: &ParticleState, f: LevitationalField) -> Vector3 { f.0 }
     }
     struct ZeroMock;
     impl ResponseLaw for ZeroMock {
-        fn from_gravitational(&self, _: &ParticleState, _: GravitationalField) -> Vector3 { Vector3::ZERO }
-        fn from_levitational(&self, _: &ParticleState, _: LevitationalField) -> Vector3 { Vector3::ZERO }
+        fn respond_to_gravitational(&self, _: &ParticleState, _: GravitationalField) -> Vector3 { Vector3::ZERO }
+        fn respond_to_levitational(&self, _: &ParticleState, _: LevitationalField) -> Vector3 { Vector3::ZERO }
     }
     fn constants() -> ModelConstants {
         ModelConstants { g: 1.0, k_g: 1.0, k_l: 1.0, k_k: 1.0, cosmic_energy: 10.0 }
