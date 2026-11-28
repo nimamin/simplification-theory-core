@@ -32,15 +32,14 @@ pub struct WorkPathEnergies {
 /// position or velocity direction as a function of time. Does NOT alter the
 /// canonical energy allocation rule. Never inserts artificial minimum energy.
 pub fn constant_field_work_path(
-    initial_gravitational: f64,
-    initial_levitational: f64,
-    initial_kinetic: f64,
+    initial: WorkPathEnergies,
     gravitational_field: Vector3,
     levitational_field: Vector3,
     displacement: Vector3,
     kinetic_coefficient: f64,
     cosmic_energy: f64,
 ) -> Result<WorkPathEnergies, WorkPathError> {
+    let WorkPathEnergies { gravitational: initial_gravitational, levitational: initial_levitational, kinetic: initial_kinetic } = initial;
     let values = [
         initial_gravitational, initial_levitational, initial_kinetic,
         kinetic_coefficient, cosmic_energy,
@@ -90,7 +89,7 @@ mod tests {
     #[test]
     fn noncollinear_field_energies_follow_independent_dot_products() {
         let s = constant_field_work_path(
-            1.0, 8.0, 1.0,
+            WorkPathEnergies { gravitational: 1.0, levitational: 8.0, kinetic: 1.0 },
             Vector3::new(2.0, 0.0, 0.0),
             Vector3::new(0.0, 3.0, 0.0),
             Vector3::new(1.0, 1.0, 0.0),
@@ -104,7 +103,7 @@ mod tests {
     #[test]
     fn zero_displacement_preserves_all_energies() {
         let s = constant_field_work_path(
-            1.0, 8.0, 1.0,
+            WorkPathEnergies { gravitational: 1.0, levitational: 8.0, kinetic: 1.0 },
             Vector3::new(3.0, 0.0, 0.0),
             Vector3::new(-2.0, 0.0, 1.0),
             Vector3::ZERO, 1.0, 10.0,
@@ -118,7 +117,7 @@ mod tests {
     fn inaccessible_reverse_displacement_is_rejected() {
         assert_eq!(
             constant_field_work_path(
-                1.0, 8.0, 1.0,
+                WorkPathEnergies { gravitational: 1.0, levitational: 8.0, kinetic: 1.0 },
                 Vector3::new(2.0, 0.0, 0.0),
                 Vector3::ZERO,
                 Vector3::new(-5.0, 0.0, 0.0),

@@ -49,3 +49,6 @@ mod tests {
         assert!(!CORE_VERSION.is_empty());
     }
 }
+
+/// Version 2 reference dynamics; the original experimental APIs remain legacy.
+pub mod theory_v2;
