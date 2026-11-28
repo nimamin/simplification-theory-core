@@ -10,6 +10,7 @@ pub struct V2Constants {
     pub c_l: f64,
     pub energy_floor: f64,
     pub reference_field: f64,
+    pub k_w: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,7 +25,7 @@ pub enum V2Error {
 impl V2Constants {
     pub(super) fn validate(&self) -> Result<(), V2Error> {
         if [self.k_g, self.k_l, self.k_k, self.c_g, self.c_l, self.energy_floor,
-            self.reference_field].iter().all(|x| x.is_finite() && *x > 0.0) {
+            self.reference_field, self.k_w].iter().all(|x| x.is_finite() && *x > 0.0) {
             Ok(())
         } else { Err(V2Error::InvalidInput) }
     }
@@ -54,7 +55,7 @@ pub fn advance(state: &ParticleState, fields: FieldTotals, c: &V2Constants, dt: 
         return Err(V2Error::InvalidInput);
     }
     let e = energies(state, c)?;
-    let raw = WorkVectors::from_fields(fields, e, c.reference_field, dt);
+    let raw = WorkVectors::from_fields(fields, e, c.reference_field, c.k_w, dt);
     if !raw.gravitational.is_finite() || !raw.levitational.is_finite()
         || !raw.total().is_finite() { return Err(V2Error::NonFinite); }
     let j = scale(state.velocity, c.k_k * norm(state.velocity));

@@ -3,7 +3,7 @@ use escentron_core::theory_v2::{advance, advance_system, energies, V2Constants};
 
 fn constants() -> V2Constants {
     V2Constants { k_g: 1.0, k_l: 1.0, k_k: 1.0, c_g: 1.0, c_l: 1.0,
-        energy_floor: 1e-6, reference_field: 1.0 }
+        energy_floor: 1e-6, reference_field: 1.0, k_w: 2.0 }
 }
 fn particle(x: f64) -> ParticleState {
     ParticleState { position: Vector3::new(x, 0.0, 0.0),

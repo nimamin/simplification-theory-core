@@ -8,10 +8,14 @@ pub struct WorkVectors {
 }
 
 impl WorkVectors {
-    pub(super) fn from_fields(fields: FieldTotals, e: EnergyBreakdown, f0: f64, dt: f64) -> Self {
+    pub(super) fn from_fields(fields: FieldTotals, e: EnergyBreakdown, f0: f64, k_w: f64, dt: f64) -> Self {
+        let cosmic_energy = e.total();
+        let response = |field: Vector3, energy: f64| {
+            scale(scale(field, 1.0 / f0), k_w * (energy / cosmic_energy) * dt)
+        };
         Self {
-            gravitational: scale(fields.gravitational.0, e.gravitational * (dt / f0)),
-            levitational: scale(fields.levitational.0, e.levitational * (dt / f0)),
+            gravitational: response(fields.gravitational.0, e.gravitational),
+            levitational: response(fields.levitational.0, e.levitational),
         }
     }
 
