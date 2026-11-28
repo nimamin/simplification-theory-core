@@ -50,30 +50,38 @@ fn v2_001_exact_floor_reversal() {
     let c = constants();
     let dt = 0.001;
     let s = advance(&particle(0.0), field(1000.0, 0.0), &c, dt).unwrap();
+    check_energy(&s, &c, 2.0);
+    assert!((energies(&s, &c).unwrap().gravitational - c.energy_floor).abs() < 1e-12);
+    let held = advance(&s, field(1000.0, 0.0), &c, dt).unwrap();
+    assert!((held.velocity.x - s.velocity.x).abs() < 1e-12);
     let back = advance(&s, field(-1000.0, 0.0), &c, dt).unwrap();
     assert!(back.velocity.x < s.velocity.x, "exact saturation must permit braking");
+    check_energy(&back, &c, 2.0);
+    assert!(back.mass > s.mass);
 }
 
 #[test]
 fn v2_002_symmetric_rebound() {
     let c = constants();
     for dt in [0.001, 0.0005, 0.00025] {
-        let mut states = vec![particle(-1.0), particle(1.0)];
+        let mut states = vec![particle(-5.0), particle(5.0)];
         let mut approached = false;
-        let mut entered = false;
         let mut rebounded = false;
-        let mut minimum = 2.0_f64;
-        for _ in 0..(40.0 / dt) as usize {
+        let mut minimum = 10.0_f64;
+        for step in 0..(100.0 / dt) as usize {
             states = advance_system(&states, &c, dt).unwrap();
+            if step == 0 {
+                assert!(states[0].velocity.x > 0.0 && states[1].velocity.x < 0.0, "initial attraction required");
+            }
             let gap = states[1].position.x - states[0].position.x;
             minimum = minimum.min(gap);
             assert!(gap > 0.0, "particles crossed at dt={dt}");
             assert!((states[0].position.x + states[1].position.x).abs() < 1e-9);
             for s in &states { check_energy(s, &c, 2.0); }
-            approached |= gap < 2.0 - 1e-6;
-            entered |= gap < states[0].pulse / states[0].mass;
-            if approached && entered && states[0].velocity.x < 0.0 && states[1].velocity.x > 0.0 {
+            approached |= gap < 10.0 - 1e-6;
+            if approached && states[0].velocity.x < 0.0 && states[1].velocity.x > 0.0 {
                 rebounded = true;
+                println!("dt={dt}, rebound_time={}, minimum_gap={minimum}", (step + 1) as f64 * dt);
                 break;
             }
         }

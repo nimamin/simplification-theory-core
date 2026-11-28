@@ -54,16 +54,13 @@ pub fn advance(state: &ParticleState, fields: FieldTotals, c: &V2Constants, dt: 
         return Err(V2Error::InvalidInput);
     }
     let e = energies(state, c)?;
-    let work = WorkVectors::from_fields(fields, e, c.energy_floor, c.reference_field, dt);
+    let raw = WorkVectors::from_fields(fields, e, c.reference_field, dt);
+    if !raw.gravitational.is_finite() || !raw.levitational.is_finite()
+        || !raw.total().is_finite() { return Err(V2Error::NonFinite); }
     let j = scale(state.velocity, c.k_k * norm(state.velocity));
+    let (work, qg, ql) = raw.limited(j, e, c.energy_floor);
     let next_j = add(j, work.total());
     let kinetic = norm(next_j);
-    // Rationalize the norm difference to reduce cancellation for tiny work.
-    let w = work.total();
-    let delta = if kinetic + e.kinetic > 0.0 {
-        super::dot(w, add(next_j, j)) / (kinetic + norm(j))
-    } else { 0.0 };
-    let (qg, ql) = work.exchange(delta);
     let eg = e.gravitational - qg;
     let el = e.levitational - ql;
     let tolerance = 64.0 * f64::EPSILON * e.total();

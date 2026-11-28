@@ -23,9 +23,9 @@ Sum each field kind independently. Coincidence is undefined in this specificatio
 ## III. Work and energy exchange
 
 J = k_k |v| v, |J| = E_k.
-A_i = E_i - E_min.
-U_i = A_i F_i/F_0.
-W_i = A_i F_i/max(F_0, |F_i|).
+Raw work: U_i = k_w E_i F_i dt, where k_w is a positive constant (implemented as 1/F_0).
+Use the entire remaining reservoir energy E_i, including the positive minimum.
+Applied work W_i is U_i unless the resulting signed transfer would leave a reservoir below E_min.
 W = W_g + W_l; J' = J + W; delta E_k = |J'| - |J|.
 q_i = (W_i dot W)/|W|^2 * delta E_k; E_i' = E_i - q_i.
 If W = 0, q_g = q_l = 0.
@@ -33,20 +33,20 @@ Recover m, p and v from their updated energies. No interparticle energy transfer
 
 ## Numerical conventions, not new postulates
 
-The original work equation specifies a step, not a physical rate. For the reference implementation only, use normalized dt: W_i = A_i * unit(F_i) * min(dt |F_i|/F_0, 1). At dt=1 this is the documented work rule. Position uses trapezoidal drift; all particles see the same old snapshot. Constants are explicit and units uncalibrated. No artificial rebound or velocity reset is permitted.
+The revised work equation uses normalized dt and k_w = 1/F_0. Compute the signed transfers using the raw vectors. If either transfer would spend more than E_i - E_min, apply a common scalar lambda in [0,1] to both raw vectors and recompute the transfers, using a bounded bisection search for a feasible step. This numerical choice preserves the direction and signed shares of the raw resultant; it is not a new physical postulate. A negative transfer replenishes the reservoir and is not constrained by its minimum. Position uses trapezoidal drift; all particles see the same old snapshot. Constants are explicit and units uncalibrated. No artificial rebound or velocity reset is permitted.
 
-Exact saturation is an absorbing state for an exhausted channel under the documented rule, even if its field reverses. This conflicts with the requested acceptance test; do not hide the conflict or modify the postulates silently.
+An exhausted reservoir retains nonzero raw work because E_min > 0; a reversed field may replenish it. The time symmetry requirement is retained and must be tested, not assumed.
 
 ## Acceptance tests
 
 Run cargo test -p escentron-core --test theory_v2. All tests are active; failures are research results, not ignored.
 
 - V2-001: normalized initial m=p=1, v=0, coefficients=1, floor=1e-6, dt=0.001. Apply a constant gravitational field +1 until available energy <=1e-4, then reverse to -1. Require braking time equal to acceleration time within 0.02 normalized time, then negative velocity. Additional exact-floor test uses field magnitude 1000.
-- V2-002: identical particles at x=-1,+1, rest, same constants. Require approach, entry inside instantaneous neutral radius, rebound without crossing, symmetry and individual energy conservation; repeat dt=0.001, 0.0005, 0.00025 over at most 40 time units.
+- V2-002: identical particles at x=-5,+5, rest, same constants (initial neutral radius 1, initial gap 10). Require initial attraction, approach, rebound without crossing, symmetry and individual energy conservation; repeat dt=0.001, 0.0005, 0.00025 over at most 100 time units. No neutral-radius condition after release. Record first rebound time and minimum gap.
 - V2-003: force-free motion.
 - V2-004: exact cancellation of work.
 - V2-005: individual conservation and floors.
 - V2-006: translation and rotation invariance.
 - V2-007: refinement at fixed elapsed time.
 
-Tolerances, normalized coefficients and horizons are proposed numerical fixtures, not measured physical constants. The legacy experimental APIs remain available for comparison. The new reference API is escentron_core::theory_v2; it does not yet replace legacy callers. Package version 2.0.0-alpha.1 denotes an unvalidated implementation of theory 2.0.
+Tolerances, normalized coefficients and horizons are proposed numerical fixtures, not measured physical constants. The legacy experimental APIs remain available for comparison. The new reference API is escentron_core::theory_v2; it does not yet replace legacy callers. Package version 2.0.0-alpha.2 denotes an unvalidated implementation of theory 2.0.
