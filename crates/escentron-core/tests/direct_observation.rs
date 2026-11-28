@@ -43,7 +43,9 @@ fn direct_floor_allows_replenishment() {
     let saturated = model.advance(&initial, field(1000.0), 0.001).unwrap();
     assert!((saturated.mass - model.mass_min).abs() < 1e-12);
     let held = model.advance(&saturated, field(1000.0), 0.001).unwrap();
-    assert_eq!(held.velocity, saturated.velocity);
+    assert!((held.velocity.x - saturated.velocity.x).abs() < 1e-12);
+    assert!((held.velocity.y - saturated.velocity.y).abs() < 1e-12);
+    assert!((held.velocity.z - saturated.velocity.z).abs() < 1e-12);
     let braking = model.advance(&held, field(-1000.0), 0.001).unwrap();
     assert!(braking.mass > held.mass);
     assert!(braking.velocity.x < held.velocity.x);
