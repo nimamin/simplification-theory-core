@@ -30,3 +30,21 @@ fn observe_energy_without_enforcing_conservation() {
         }
     }
 }
+
+#[test]
+fn direct_floor_allows_replenishment() {
+    let c = V2Constants { k_g: 1.0, k_l: 1.0, k_k: 1.0, c_g: 1.0, c_l: 1.0,
+        energy_floor: 1e-6, reference_field: 1.0, k_w: 2.0 };
+    let initial = ParticleState { position: Vector3::ZERO, velocity: Vector3::ZERO,
+        mass: 1.0, pulse: 1.0 };
+    let model = DirectModel::new(&initial, c).unwrap();
+    let field = |x| FieldTotals { gravitational: GravitationalField(Vector3::new(x, 0.0, 0.0)),
+        levitational: LevitationalField(Vector3::ZERO) };
+    let saturated = model.advance(&initial, field(1000.0), 0.001).unwrap();
+    assert!((saturated.mass - model.mass_min).abs() < 1e-12);
+    let held = model.advance(&saturated, field(1000.0), 0.001).unwrap();
+    assert_eq!(held.velocity, saturated.velocity);
+    let braking = model.advance(&held, field(-1000.0), 0.001).unwrap();
+    assert!(braking.mass > held.mass);
+    assert!(braking.velocity.x < held.velocity.x);
+}
