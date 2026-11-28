@@ -65,3 +65,7 @@ All 8 tests passed. First rebound (dt, time, minimum gap):
 - 0.001, 15.467, 1.3206003266373654
 - 0.0005, 15.4665, 1.3208853496283364
 - 0.00025, 15.46625, 1.3210291835538037
+
+## Alpha.4 — direct-coordinate observation (experimental)
+
+The alpha.3 reference engine is retained. The separate direct experiment integrates m, p and v without energy inversion, conservation corrections, or reservoir floors. The initial cosmic energy defines fixed m_max and p_max, calculated once. The provisional acceleration law is a_g = k_w (m/m_max) F_g/F_0 and a_l = k_w (p/p_max) F_l/F_0. The coefficient is interpreted in normalized acceleration units. Velocity advances by (a_g+a_l) dt. For this experiment only, signed speed change is allocated by projection onto the resultant acceleration and subtracted directly from mass and pulse in normalized coordinate units (unit conversion factors assumed one). This allocation is a hypothesis, not a derived conservation law. The measured energy is k_g m^2 + k_l p^2 + k_k |v|^2; no feedback uses it. No minimum floor is applied in this observation. Run cargo test -p escentron-core --test direct_observation -- --nocapture. The original eight acceptance tests still exercise the reference engine, not the experimental direct model. Package version 2.0.0-alpha.4.

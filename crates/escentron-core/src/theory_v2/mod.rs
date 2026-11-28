@@ -22,3 +22,6 @@ fn dot(a: Vector3, b: Vector3) -> f64 {
 fn norm(a: Vector3) -> f64 {
     a.x.hypot(a.y).hypot(a.z)
 }
+
+/// Direct-coordinate experiment; no energy conservation enforcement.
+pub mod direct;
